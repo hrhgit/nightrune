@@ -3,10 +3,16 @@ import { CARDS } from '../data/cards.ts';
 import { ENEMIES } from '../data/enemies.ts';
 import { createBattle, step } from '../engine/index.ts';
 import { greedyPlacement } from '../bots/greedy.ts';
+import type { CardDef } from '../engine/types.ts';
 
 import { validateTables } from '../engine/validate-tables.ts';
 
 type Tables = Parameters<typeof validateTables>[0];
+
+const cardWithCostAboveThree: CardDef = {
+  name: 'Expensive', direction: 'attack', owner: 'player', cost: 4,
+  effect: { kind: 'attack', amount: [1, 2, 3] },
+};
 
 function tables(cardId: string, card: unknown, line: readonly (string | null)[] = []): Tables {
   return {
@@ -51,10 +57,22 @@ describe('N-2 card and enemy table values are valid', () => {
   });
 
   it('N-2 allows values and costs above any table limit', () => {
+    expect(cardWithCostAboveThree.cost).toBe(4);
     expect(() => validateTables(tables('large-card', {
       name: 'Large', direction: 'attack', owner: 'player', cost: 1_000_000,
       effect: { kind: 'attack', amount: [1_000_000, 1_000_001, 1_000_002] },
     }))).not.toThrow();
+  });
+
+  it.each([
+    ['NaN', Number.NaN, 'NaN'],
+    ['positive infinity', Number.POSITIVE_INFINITY, 'Infinity'],
+    ['negative infinity', Number.NEGATIVE_INFINITY, '-Infinity'],
+  ])('N-2 reports the invalid %s value', (_label, amount, shownValue) => {
+    expect(() => validateTables(tables('non-finite-card', {
+      name: 'Non-finite', direction: 'attack', owner: 'player', cost: 0,
+      effect: { kind: 'attack', amount: [1, amount, 3] },
+    }))).toThrow(`cards non-finite-card field effect.amount[1] has bad value ${shownValue}`);
   });
 
   it.each([

@@ -8,7 +8,8 @@ export interface GameTables {
 }
 
 function fail(table: string, id: string, field: string, value: unknown, reason: string): never {
-  throw new Error(`${table} ${id} field ${field} has bad value ${JSON.stringify(value)}: ${reason}`);
+  const shownValue = typeof value === 'number' && !Number.isFinite(value) ? String(value) : JSON.stringify(value);
+  throw new Error(`${table} ${id} field ${field} has bad value ${shownValue}: ${reason}`);
 }
 
 /** Check the game tables before the engine can create a battle. */
