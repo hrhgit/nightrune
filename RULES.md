@@ -51,8 +51,8 @@ Status: **done** = implemented and tested; **partial** = implemented in part (se
 
 | Id | Rule | Status |
 |---|---|---|
-| R-12 | An effect may target the next or the previous card. If the target slot is empty, or the target has no value that can change, the effect fizzles; it does not skip to a farther card. In v0 there is no wrap-around: slot 4 has no next card and slot 1 has no previous card. | partial: "next" (Whetstone) and "previous" (Echo) done; R-12.3 differs for re-fire (see Requirements). Attack, block and grow cards have a value that can change; Echo has none |
-| R-13 | Re-fire makes the target's effect happen again in the current slot; the re-fired attack and block count toward the current slot's head-to-head resolution. A card can be re-fired at most once per round. | done (Echo). Re-fired cards fire through the same code path as the cursor's own card |
+| R-12 | An effect may target the next or the previous card. If the target slot is empty the effect fizzles, and an effect that changes a value fizzles if the target has no value; it does not skip to a farther card. In v0 there is no wrap-around: slot 4 has no next card and slot 1 has no previous card. | done: "next" (Whetstone) and "previous" (Echo). Attack, block and grow cards have a value that can change; Echo has none |
+| R-13 | A copy card acts, in its own slot, as a copy of the card it targets: the same effect and current value, with that effect's own targets counted from the copy card's slot. A copy of a copy card is a copy of what that card copies. There is no limit on how often a card is copied. | done (Echo). A copy fires through the same code path as the card it copies |
 | R-14 | Boosts come in two kinds. A temporary boost lasts for the current round. Growth lasts for the rest of the battle and is cleared after it. Growth is stored on the boosted card and stays with it if it is replaced, discarded, drawn again and placed again within the battle. | partial: growth done (Whetstone); temporary boosts not built; clearing after the battle waits for multi-battle runs |
 
 ## Merging
@@ -118,13 +118,15 @@ Status: **done** = a test whose `it()` title names the requirement id checks it;
 | R-11.1 | If both sides are still above 0 HP at the end of round 20's run, the player loses and no round 21 is played. | done |
 | R-12.1 | A "next" effect targets the card one slot higher on the same line; a "previous" effect targets the card one slot lower. | done |
 | R-12.2 | If the target slot is empty, the effect fizzles. | done |
-| R-12.3 | If the target card has no value that can change, the effect fizzles. | differs: growth follows it (Whetstone onto Echo fizzles); re-fire does not (Echo onto Echo re-fires it). Waiting for the author |
+| R-12.3 | If an effect that changes a value (growth) targets a card with no value, it fizzles. *(ruling RL-3)* A copy does not change a value, so this does not stop a copy. | done |
 | R-12.4 | A fizzled effect does not move on to a farther card. | done |
 | R-12.5 | There is no wrap-around: an effect aimed past slot 4 or before slot 1 fizzles. | done |
-| R-13.1 | Re-fire makes the target card's effect happen again, during the current slot. | done |
-| R-13.2 | The attack and block of a re-fired card count in the current slot, not in the target's own slot. | done |
-| R-13.3 | A card is re-fired at most once per round; *(clarifies)* a further re-fire of it in that round fizzles. | done |
-| R-13.4 | The once-per-round limit starts again each round. | done |
+| R-13.1 | A copy card fires as the card it targets: that card's effect happens, in the copy card's slot. | done |
+| R-13.2 | The attack and block of a copy count in the copy card's slot, not in the copied card's slot. | done |
+| R-13.3 | *(ruling RL-2)* A copy has the copied card's current value, growth included. | done |
+| R-13.4 | *(ruling RL-1)* A copied effect that targets ("next", "previous") counts from the copy card's slot: a copy of Whetstone grows the card after the copy. | done |
+| R-13.5 | *(ruling RL-1)* A copy of a copy card is a copy of what that card copies, so a row of copy cards all act as the card before the row. There is no per-round limit. | done |
+| R-13.6 | *(ruling RL-1)* If a row of copy cards reaches an empty slot or slot 1 without finding a card that is not a copy, the copy fizzles and does not reach a farther card. | done |
 | R-14.1 | A temporary boost lasts for the current round only. | planned |
 | R-14.2 | Growth adds to the boosted card's value from the moment it lands until the end of the battle, and growth from several firings adds up. | done |
 | R-14.3 | Growth stays with the card when it is replaced, discarded, drawn again and placed again within the battle. | done |
@@ -141,17 +143,26 @@ Status: **done** = a test whose `it()` title names the requirement id checks it;
 | R-17.3 | Enemy cards use the same effects as player cards. | done |
 | R-17.4 | Enemies do not use energy: an enemy card fires whatever its cost. | done |
 
+## Rulings
+
+A rule's first wording can be read more than one way. When a particular case shows that, the author decides it, and the decision is recorded here: the case, the ruling, and the requirements it added or changed. Those requirements are marked *(ruling RL-n)*. `tests/rule-ids.test.ts` fails if a ruling names a requirement that does not exist or is not done, or if a requirement cites a ruling that is not here; the requirements themselves are tested like any other.
+
+| Id | Date | Case | Ruling | Requirements |
+|---|---|---|---|---|
+| RL-1 | 2026-11-18 | Echo re-fired the previous card: after Whetstone, the re-fired Whetstone aimed at the Echo and always fizzled; a second Echo in a row always fizzled. | Echo acts as a copy of the previous card in its own slot. A copied effect aims from the Echo's slot, so its targets move with it. A second Echo copies what the first copies. No per-round limit. | R-13.4, R-13.5, R-13.6 |
+| RL-2 | 2026-11-18 | Does a copy carry the copied card's growth? | Yes: a copy has the copied card's current value, growth included. | R-13.3 |
+| RL-3 | 2026-11-18 | Whetstone whose next card is an Echo: does the growth land on the Echo? | No: Echo has no value of its own, so the growth fizzles. | R-12.3 |
+
 ## Open design questions
 
-Found while checking the requirements, the card texts and every card arrangement against each other. None of these is an engine fault: the engine does what is listed. Each needs the author's decision; until then, nothing changes.
+Found while checking the requirements, the card texts and every card arrangement against each other. None of these is an engine fault: the engine does what is listed. Each needs the author's decision; until then, nothing changes. A decided question becomes a ruling above.
 
 | Id | Question | What happens today |
 |---|---|---|
-| Q-1 | R-12.3 says an effect aimed at a card with no value fizzles. Should that apply to re-fire, which does not change a value? | Echo aimed at an Echo re-fires it (R-12.3 marked "differs"). `tests/oracle.test.ts` counts these cases and fails if they stop happening, so a fix shows up |
 | Q-2 | Slash's text says "Deals N damage to the opposing slot". Under R-08 a block in that slot lowers it. | The text holds against an unblocked slot (`tests/card-text.test.ts`); against a block, less than N is dealt |
 | Q-3 | Whetstone's text says "Gives the next card +N"; R-12 makes it fizzle in slot 4, before an empty slot or before an Echo. | The card text does not mention fizzling; the rulebook does |
-| Q-4 | Echo after Whetstone re-fires the Whetstone, whose next card is that Echo, so the re-fired Whetstone always fizzles. | Allowed by R-12 and R-13 as written; the pair never gives growth |
-| Q-5 | A second Echo right after an Echo always fizzles (its target's target was already re-fired that round). | Allowed by R-13.3 as written |
+
+Q-1, Q-4 and Q-5 (Echo after Echo, Echo after Whetstone) were decided by RL-1.
 
 ## Checks
 

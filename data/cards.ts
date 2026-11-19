@@ -29,8 +29,8 @@ export const CARDS = {
     direction: 'flow',
     cost: 2,
     owner: 'player',
-    // Re-fires the previous card once. The upgraded effect is not decided; merging (T07) is not built.
-    effect: { kind: 'refire', target: 'previous' },
+    // Acts as a copy of the previous card, in its own slot (R-13). The upgraded effect is not decided; merging (T07) is not built.
+    effect: { kind: 'copy', target: 'previous' },
   },
   'dummy-swing': {
     name: 'Straw Swing',

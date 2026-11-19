@@ -66,15 +66,14 @@ describe('every card does what its own text says', () => {
             expect(hits).toEqual([base + n, base + 2 * n, base + 3 * n]);
             return;
           }
-          case 'refire': {
-            // "Fires the previous card again, in this slot. A card is fired again at most once per round."
-            const prev = card('slash', 'p');
-            const { events } = step(battle([prev, self, { ...self, uid: 'y' }, null], [null, null, null, null]), { type: 'run' });
+          case 'copy': {
+            // "Acts as a copy of the previous card, in this slot": after a Slash it hits for the
+            // Slash's value in its own slot; after a Whetstone it grows the card after itself.
             const hit = CARDS.slash.effect.amount[0];
-            expect(damageTo(events, 'enemy', 2)).toBe(hit);
-            // The second copy re-fires this card, whose own re-fire of the Slash is then refused.
-            expect(damageTo(events, 'enemy', 3)).toBe(0);
-            expect(events.filter((e) => e.type === 'refire' && e.targetUid === 'p')).toHaveLength(1);
+            const afterSlash = step(battle([card('slash', 'p'), self, null, null], [null, null, null, null]), { type: 'run' });
+            expect(damageTo(afterSlash.events, 'enemy', 2)).toBe(hit);
+            const afterWhet = step(battle([card('whetstone', 'w'), self, card('slash', 't'), null], [null, null, null, null]), { type: 'run' });
+            expect(damageTo(afterWhet.events, 'enemy', 3)).toBe(hit + CARDS.whetstone.effect.amount[0]);
             return;
           }
           default:

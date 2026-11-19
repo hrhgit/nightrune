@@ -124,6 +124,55 @@ export function requirementProblems(
   return out;
 }
 
+export interface RulingRow {
+  readonly id: string;
+  readonly requirements: string[];
+}
+
+/** Rows of the RULES.md rulings table: `| RL-1 | date | case | ruling | R-13.4, R-13.5 |`. */
+export function rulingRows(markdown: string): RulingRow[] {
+  return markdown.split('\n').flatMap((line) => {
+    const m = /^\|\s*(RL-\d+)\s*\|.*\|\s*([^|]*?)\s*\|\s*$/.exec(line);
+    return m === null ? [] : [{ id: m[1] ?? '', requirements: (m[2] ?? '').match(/\bR-\d+\.\d+\b/g) ?? [] }];
+  });
+}
+
+/**
+ * Problems between the rulings table and the requirements table:
+ * - a ruling id used twice, or a ruling that names no requirement;
+ * - a ruling naming a requirement that does not exist or is not done (so not yet tested);
+ * - a requirement row citing "ruling RL-n" that is not in the table, or that the ruling does not name.
+ */
+export function rulingProblems(markdown: string, reqs: readonly RuleRow[]): string[] {
+  const out: string[] = [];
+  const rulings = rulingRows(markdown);
+  const status = new Map(reqs.map((r) => [r.id, word(r.status)]));
+  const seen = new Set<string>();
+  for (const r of rulings) {
+    if (seen.has(r.id)) out.push(`${r.id} is used twice`);
+    seen.add(r.id);
+    if (r.requirements.length === 0) out.push(`${r.id} names no requirement`);
+    for (const id of r.requirements) {
+      const st = status.get(id);
+      if (st === undefined) out.push(`${r.id} names ${id}, which is not a requirement`);
+      else if (st !== 'done') out.push(`${r.id} names ${id}, which is ${st}, not done`);
+    }
+  }
+  const byId = new Map<string, RulingRow>();
+  for (const r of rulings) if (!byId.has(r.id)) byId.set(r.id, r);
+  for (const line of markdown.split('\n')) {
+    const req = /^\|\s*(R-\d+\.\d+)\s*\|/.exec(line)?.[1];
+    if (req === undefined) continue;
+    for (const cited of line.match(/\bruling (RL-\d+)\b/g) ?? []) {
+      const id = cited.replace('ruling ', '');
+      const ruling = byId.get(id);
+      if (ruling === undefined) out.push(`${req} cites ${id}, which is not a ruling`);
+      else if (!ruling.requirements.includes(req)) out.push(`${req} cites ${id}, which does not name it`);
+    }
+  }
+  return out;
+}
+
 const root = join(import.meta.dirname, '..');
 
 describe('every live rule in RULES.md is named by a test, and tests name only real rules', () => {
@@ -161,6 +210,18 @@ describe('every live requirement in RULES.md is named by an it() title, and rule
 
   it('has no problems', () => {
     expect(requirementProblems(ruleRows(markdown), reqs, testedInIt, namedAnywhere)).toEqual([]);
+  });
+});
+
+describe('every ruling in RULES.md names done requirements, and every cited ruling exists', () => {
+  const markdown = readFileSync(join(root, 'RULES.md'), 'utf8');
+
+  it('reads the rulings table', () => {
+    expect(rulingRows(markdown).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('has no problems', () => {
+    expect(rulingProblems(markdown, requirementRows(markdown))).toEqual([]);
   });
 });
 
@@ -222,6 +283,24 @@ describe('the rule-id check itself', () => {
     expect(requirementProblems(rules, reqs, idsInTitles(src, 'it'), idsInTitles(src))).toEqual([
       'a test names I-1.2, which is not a requirement',
       'a test names R-01.9, which is not a requirement',
+    ]);
+  });
+
+  it('flags rulings that name missing or unfinished requirements, and citations of missing rulings', () => {
+    const md = [
+      '| R-01.1 | a *(ruling RL-1)* | done |',
+      '| R-01.2 | b *(ruling RL-9)* | done |',
+      '| R-01.3 | c *(ruling RL-2)* | planned |',
+      '| RL-1 | 2026-01-01 | case | ruling | R-01.1, R-01.5 |',
+      '| RL-2 | 2026-01-01 | case | ruling | R-01.3 |',
+      '| RL-2 | 2026-01-01 | case | ruling | none |',
+    ].join('\n');
+    expect(rulingProblems(md, requirementRows(md))).toEqual([
+      'RL-1 names R-01.5, which is not a requirement',
+      'RL-2 names R-01.3, which is planned, not done',
+      'RL-2 is used twice',
+      'RL-2 names no requirement',
+      'R-01.2 cites RL-9, which is not a ruling',
     ]);
   });
 

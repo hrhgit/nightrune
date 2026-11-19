@@ -64,6 +64,13 @@ describe('R-16 a recorded battle replays to the same final state', () => {
   });
 });
 
+describe('R-16 a record from older rules is refused', () => {
+  it('R-16.3 refuses a nightrune-record/1 file, made before the Echo copy ruling, instead of replaying it under the new rules', () => {
+    const old = { ...greedyRecord(7), format: 'nightrune-record/1' };
+    expect(parseRecord(JSON.parse(JSON.stringify(old)))).toEqual({ ok: false, problems: ['format must be "nightrune-record/2"'] });
+  });
+});
+
 describe('R-16 replay command exit codes', () => {
   const dir = mkdtempSync(join(tmpdir(), 'nightrune-replay-'));
   const root = join(import.meta.dirname, '..');

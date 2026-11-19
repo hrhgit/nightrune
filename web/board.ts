@@ -48,7 +48,7 @@ const PHASE = { bolt: 0.28, through: 0.5 } as const;
 
 /** A block or damage event from the engine, and how far through its animation it is. */
 export interface Impact {
-  readonly event: Extract<GameEvent, { type: 'damage' } | { type: 'block' } | { type: 'grow' } | { type: 'refire' } | { type: 'fizzle' }>;
+  readonly event: Extract<GameEvent, { type: 'damage' } | { type: 'block' } | { type: 'grow' } | { type: 'copy' } | { type: 'fizzle' }>;
   /** 0 when the event fired, 1 when its marks are gone. */
   readonly age: number;
 }
@@ -1036,13 +1036,13 @@ export function drawBoard(ctx: CanvasRenderingContext2D, scene: Scene): void {
 }
 
 /**
- * R-12, R-13, R-14 feedback, from the engine's grow, re-fire and fizzle events: a spark runs from the
- * source stone to its target and a label rises over the target ("+N" for growth, "again" for a
- * re-fire); a fizzled effect shows "fizzles" under its stone.
+ * R-12, R-13, R-14 feedback, from the engine's grow, copy and fizzle events: a spark runs from the
+ * source stone to its target and a label rises over the target ("+N" for growth, "copy" for a
+ * copy); a fizzled effect shows "fizzles" under its stone.
  */
 function drawGrowth(ctx: CanvasRenderingContext2D, impacts: readonly Impact[], motion: boolean): void {
   for (const { event: e, age } of impacts) {
-    if (e.type !== 'grow' && e.type !== 'refire' && e.type !== 'fizzle') continue;
+    if (e.type !== 'grow' && e.type !== 'copy' && e.type !== 'fizzle') continue;
     const fade = motion ? 1 - window01(age, 0.7, 1) : 1;
     const from = slotX(e.side, e.sourceSlot);
     if (e.type === 'fizzle') {
@@ -1050,7 +1050,7 @@ function drawGrowth(ctx: CanvasRenderingContext2D, impacts: readonly Impact[], m
       continue;
     }
     const glow = e.type === 'grow' ? DIRECTION_GLOW.growth : DIRECTION_GLOW.flow;
-    const to = slotX(e.side, e.targetSlot);
+    const to = slotX(e.side, e.type === 'copy' ? e.asSlot : e.targetSlot); // R-13.5: a chain points at the card copied
     const t = motion ? Math.min(1, age / 0.25) : 1;
     const top = LINE_Y - SLOT_STONE.h / 2;
     ctx.save();
@@ -1063,7 +1063,7 @@ function drawGrowth(ctx: CanvasRenderingContext2D, impacts: readonly Impact[], m
     ctx.quadraticCurveTo((from + to) / 2, top - 26, from + (to - from) * t, top + 4 - Math.sin(Math.PI * t) * 15 * (1 - t));
     ctx.stroke();
     ctx.restore();
-    const label = e.type === 'grow' ? `+${e.amount}` : 'again';
+    const label = e.type === 'grow' ? `+${e.amount}` : 'copy';
     if (t >= 1) strikeLabel(ctx, label, to, top - 6 - (motion ? 10 * window01(age, 0.25, 1) : 0), glow, 22, fade, motion ? 1 - window01(age, 0.25, 0.4) : 0);
   }
 }

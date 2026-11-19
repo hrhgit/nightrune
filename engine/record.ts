@@ -6,7 +6,10 @@ import { startBattle, step } from './battle.ts';
 import { seedRng } from './rng.ts';
 import { EngineError, type Action, type BattleState, type GameEvent, type RejectReason } from './types.ts';
 
-export const RECORD_FORMAT = 'nightrune-record/1';
+// The format names the rules a record was played under. Bump it whenever a rule change can make
+// the same actions end differently, so an old record is refused instead of replaying to a new result.
+// /2: Echo copies the previous card instead of re-firing the next one (RULES.md ruling RL-1).
+export const RECORD_FORMAT = 'nightrune-record/2';
 
 export interface BattleRecord {
   readonly format: typeof RECORD_FORMAT;

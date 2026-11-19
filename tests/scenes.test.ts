@@ -65,26 +65,37 @@ describe('scene preview definitions', () => {
         }
       });
 
-      it('R-12 R-13 R-14: grow, re-fire and fizzle marks match the cards on the line', () => {
+      it('R-12 R-13 R-14: grow, copy and fizzle marks match the cards on the line', () => {
         for (const { event: e } of spec.impacts ?? []) {
-          if (e.type !== 'grow' && e.type !== 'refire' && e.type !== 'fizzle') continue;
+          if (e.type !== 'grow' && e.type !== 'copy' && e.type !== 'fizzle') continue;
           const source = cardAt(spec, e.side, e.sourceSlot);
           expect(source?.id).toBe(e.cardId);
-          const effect = cardDef(e.cardId).effect;
-          if (effect.kind !== 'grow' && effect.kind !== 'refire') throw new Error(`${e.cardId} has no target`);
+          if (source === null || source === undefined) throw new Error(`${e.type} needs a source`);
+          // R-13: a grow or fizzle from a copy card is the effect of the card it copies, aimed from its own slot.
+          const copied = e.type !== 'copy' && cardDef(source.id).effect.kind === 'copy' ? cardAt(spec, e.side, e.sourceSlot - 1) : source;
+          if (copied === null || copied === undefined) throw new Error(`${e.cardId} copies nothing`);
+          const effect = cardDef(copied.id).effect;
+          if (effect.kind !== 'grow' && effect.kind !== 'copy') throw new Error(`${copied.id} has no target`);
           const aim = effect.target === 'next' ? e.sourceSlot + 1 : e.sourceSlot - 1;
           const target = aim >= 1 && aim <= 4 ? cardAt(spec, e.side, aim) : undefined;
           if (e.type === 'fizzle') {
             expect(e.target).toBe(effect.target);
             expect(e.targetSlot).toBe(target === undefined ? null : aim);
             if (target === undefined || target === null) expect(e.reason).toBe(target === undefined ? 'no-slot' : 'empty-slot');
-            else expect(['no-value', 'already-refired']).toContain(e.reason);
+            else expect(['no-value', 'nothing-to-copy']).toContain(e.reason);
             continue;
           }
-          if (source === null || source === undefined || target === null || target === undefined) throw new Error(`${e.type} needs a source and a target`);
+          if (target === null || target === undefined) throw new Error(`${e.type} needs a target`);
           expect([e.targetSlot, e.targetCardId]).toEqual([aim, target.id]);
-          if (e.type === 'refire') continue;
-          expect(e.amount).toBe(cardValue({ cardId: source.id, level: source.level, growth: source.growth }));
+          if (e.type === 'copy') {
+            // R-13.5: the card copied is the first card at or before the target that is not a copy card.
+            const as = cardAt(spec, e.side, e.asSlot);
+            expect(as?.id).toBe(e.asCardId);
+            expect(e.asSlot).toBeLessThanOrEqual(e.targetSlot);
+            if (as !== null && as !== undefined) expect(cardDef(as.id).effect.kind).not.toBe('copy');
+            continue;
+          }
+          expect(e.amount).toBe(cardValue({ cardId: copied.id, level: copied.level, growth: copied.growth }));
           // The scene shows the moment after growth landed: the target already carries it.
           expect(e.valueAfter).toBe(cardValue({ cardId: target.id, level: target.level, growth: target.growth }));
         }

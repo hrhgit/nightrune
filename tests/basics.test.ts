@@ -57,13 +57,13 @@ describe('R-17 the enemy line', () => {
   });
 
   it('R-17.4 enemies use no energy: an enemy card with a cost fires anyway, and the enemy side has no energy', () => {
-    // Echo costs 2. On the enemy line it re-fires the enemy card before it regardless.
+    // Echo costs 2. On the enemy line it copies the enemy card before it regardless.
     expect(CARDS.echo.cost).toBeGreaterThan(0);
     const base = createBattle({ enemyId: 'training-dummy', seed: 1, playerLine: [null, null, null, null] });
     expect('energy' in base.enemy).toBe(false);
     const line = [...base.enemy.line];
     line[2] = { uid: 'e-echo', cardId: 'echo', level: 1, growth: 0 };
     const { events } = step({ ...base, enemy: { ...base.enemy, line } }, { type: 'run' });
-    expect(events.filter((e) => e.type === 'refire')).toEqual([expect.objectContaining({ side: 'enemy', slot: 3, targetSlot: 2 })]);
+    expect(events.filter((e) => e.type === 'copy')).toEqual([expect.objectContaining({ side: 'enemy', slot: 3, targetSlot: 2, asCardId: 'dummy-swing' })]);
   });
 });

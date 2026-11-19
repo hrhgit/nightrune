@@ -1,0 +1,31 @@
+Mutation check for ruling RL-1 to RL-3 (Echo copies the previous card), branch rules/echo-copies.
+Each line: one deliberate change to engine/battle.ts, then `npx tsc --noEmit -p .` error count,
+`npx vitest run tests/oracle.test.ts` and the whole suite. engine/battle.ts was restored after each.
+
+Unmodified engine                                   => all: 210 passed (210)
+copy aims from the copied card's slot               => tsc errors 0; oracle: 3 failed (3); all: 9 failed | 201 passed (210)
+a copy of a copy card copies nothing                => tsc errors 0; oracle: 2 failed | 1 passed (3); all: 4 failed | 206 passed (210)
+copy drops the copied card's growth                 => tsc errors 0; oracle: 3 failed (3); all: 4 failed | 206 passed (210)
+growth lands on a card with no value (read as 0)    => tsc errors 0; oracle: 3 failed (3); all: 6 failed | 204 passed (210)
+copy copies the card two slots back                 => tsc errors 0; oracle: 3 failed (3); all: 5 failed | 205 passed (210)
+
+A first try at "growth lands on a card with no value" did not compile (1 tsc error) and is not counted.
+
+Rulings check (tests/rule-ids.test.ts):
+"ruling names a missing requirement" check disabled => its self-test failed
+RULES.md R-13.4 changed to cite RL-7                => "has no problems" failed: "R-13.4 cites RL-7, which is not a ruling"
+
+# Qodo findings on PR 19, fixed at the next commit
+
+## Mutation 1: copy event names the target, not the end of the chain (asSlot: aim.index + 1)
+     × R-13.5 Slash then three Echoes deals the Slash's damage in all four slots, every round 10ms
+     × R-13.5 matches the independent reading for every player line × 25 enemy lines × 3 rounds 1752ms
+     × R-11.1 matches the independent reading in every round up to the round limit 276ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/copy.test.ts > R-13.5 a row of copies all act as the card before the row > R-13.5 Slash then three Echoes deals the Slash's damage in all four slots, every round
+ FAIL  tests/oracle.test.ts > R-07 R-08 R-10 R-11 R-12 R-13 R-14 every arrangement of cards does only what the rules allow > R-13.5 matches the independent reading for every player line × 25 enemy lines × 3 rounds
+## Mutation 2: record format left at /1
+     × R-16.3 refuses a nightrune-record/1 file, made before the Echo copy ruling, instead of replaying it under the new rules 5ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/replay.test.ts > R-16 a record from older rules is refused > R-16.3 refuses a nightrune-record/1 file, made before the Echo copy ruling, instead of replaying it under the new rules
+      Tests  1 failed | 8 passed (9)

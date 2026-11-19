@@ -22,7 +22,7 @@ export interface SlotOutcome {
   slot: number;
   fired: string[];
   grows: string[];
-  refires: string[];
+  copies: string[];
   fizzles: string[];
   blocked: Record<Owner, number>;
   damage: Record<Owner, number>;
@@ -38,26 +38,17 @@ export interface RoundOutcome {
   hp: Record<Owner, number>;
 }
 
-export interface OracleOptions {
-  /**
-   * R-12.3 read literally: a re-fire aimed at a card with no value fizzles. The engine does not
-   * do this today (RULES.md marks R-12.3 "differs"); false reads the rule the way the engine does.
-   */
-  readonly refireNeedsValue: boolean;
-}
-
 /** The run of `state.round` as the rules describe it. `state` is a battle in placement. */
-export function expectedRound(state: BattleState, opts: OracleOptions): RoundOutcome {
+export function expectedRound(state: BattleState): RoundOutcome {
   const lines: Record<Owner, Slot[]> = { player: [...state.player.line], enemy: [...state.enemy.line] };
   const hp: Record<Owner, number> = { player: state.player.hp, enemy: state.enemy.hp };
-  const refired: Record<Owner, Set<string>> = { player: new Set(), enemy: new Set() };
   const slots: SlotOutcome[] = [];
   const round = state.round;
   const tag = (side: Owner, c: CardInstance): string => `${side}:${c.uid}`;
 
   for (let slot = 1; slot <= RULES.lineLength; slot++) {
     const out: SlotOutcome = {
-      round, slot, fired: [], grows: [], refires: [], fizzles: [],
+      round, slot, fired: [], grows: [], copies: [], fizzles: [],
       blocked: { player: 0, enemy: 0 }, damage: { player: 0, enemy: 0 }, hpAfter: { player: 0, enemy: 0 },
     };
     const attack: Record<Owner, number> = { player: 0, enemy: 0 };
@@ -72,40 +63,46 @@ export function expectedRound(state: BattleState, opts: OracleOptions): RoundOut
       return card === null ? `empty-slot ${at}` : { at, card };
     };
 
-    // Fires the card in `at` for `side`; everything it adds counts in `slot` (R-08.1, R-13.2).
-    const fire = (side: Owner, at: number): void => {
+    // The card in `at` for `side` fires with the effect of `acting` (itself, or what it copies,
+    // R-13.1); targets are counted from `at` (R-13.4); everything it adds counts in `slot` (R-08.1, R-13.2).
+    const fire = (side: Owner, at: number, acting: CardInstance): void => {
       const card = lines[side][at - 1];
       if (card === null || card === undefined) return;
-      const effect = TABLE[card.cardId]?.effect;
+      const effect = TABLE[acting.cardId]?.effect;
       if (effect === undefined) throw new Error(`unknown card ${card.cardId}`);
       const who = `${tag(side, card)}@${at}`;
       switch (effect.kind) {
         case 'attack':
-          attack[side] += value(card) ?? 0;
+          attack[side] += value(acting) ?? 0;
           return;
         case 'block':
-          block[side] += value(card) ?? 0;
+          block[side] += value(acting) ?? 0;
           return;
         case 'grow': {
           const t = aim(side, at, effect.target);
           if (typeof t === 'string') return void out.fizzles.push(`${who} ${t}`);
           const before = value(t.card);
           if (before === null) return void out.fizzles.push(`${who} no-value ${t.at}`); // R-12.3
-          const amount = value(card) ?? 0;
+          const amount = value(acting) ?? 0;
           // R-14.2: growth lands now and stays on the card.
           lines[side][t.at - 1] = { ...t.card, growth: t.card.growth + amount };
           out.grows.push(`${who} -> ${tag(side, t.card)}@${t.at} +${amount} = ${before + amount}`);
           return;
         }
-        case 'refire': {
+        case 'copy': {
           const t = aim(side, at, effect.target);
           if (typeof t === 'string') return void out.fizzles.push(`${who} ${t}`);
-          if (opts.refireNeedsValue && value(t.card) === null) return void out.fizzles.push(`${who} no-value ${t.at}`); // R-12.3
-          // R-13.3: at most once per round per card.
-          if (refired[side].has(t.card.uid)) return void out.fizzles.push(`${who} already-refired ${t.at}`);
-          refired[side].add(t.card.uid);
-          out.refires.push(`${who} -> ${tag(side, t.card)}@${t.at}`);
-          fire(side, t.at); // R-13.1: the target's effect happens again, now.
+          // R-13.5: a copy of a copy card is a copy of what it copies; R-13.6: a chain that reaches
+          // an empty slot or the end of the line copies nothing.
+          let copied: CardInstance | null = t.card;
+          let from = t.at;
+          while (copied !== null && TABLE[copied.cardId]?.effect.kind === 'copy') {
+            from -= 1;
+            copied = from >= 1 ? (lines[side][from - 1] ?? null) : null;
+          }
+          if (copied === null) return void out.fizzles.push(`${who} nothing-to-copy ${t.at}`);
+          out.copies.push(`${who} -> ${tag(side, t.card)}@${t.at} as ${tag(side, copied)}@${from} ${copied.cardId}`);
+          fire(side, at, copied); // R-13.3: its current value, growth included
           return;
         }
       }
@@ -116,7 +113,7 @@ export function expectedRound(state: BattleState, opts: OracleOptions): RoundOut
       const card = lines[side][slot - 1] ?? null;
       if (card === null) continue;
       out.fired.push(tag(side, card));
-      fire(side, slot);
+      fire(side, slot, card);
     }
 
     // R-08.2, R-08.3: damage = opposing attack − own block, at least 0, both at once.
@@ -153,7 +150,7 @@ export function actualRound(before: BattleState, events: readonly GameEvent[], a
   const get = (slot: number): SlotOutcome => {
     let o = bySlot.get(slot);
     if (o === undefined) {
-      o = { round, slot, fired: [], grows: [], refires: [], fizzles: [], blocked: { player: 0, enemy: 0 }, damage: { player: 0, enemy: 0 }, hpAfter: { player: 0, enemy: 0 } };
+      o = { round, slot, fired: [], grows: [], copies: [], fizzles: [], blocked: { player: 0, enemy: 0 }, damage: { player: 0, enemy: 0 }, hpAfter: { player: 0, enemy: 0 } };
       bySlot.set(slot, o);
     }
     return o;
@@ -169,8 +166,8 @@ export function actualRound(before: BattleState, events: readonly GameEvent[], a
       case 'grow':
         get(e.slot).grows.push(`${e.side}:${e.uid}@${e.sourceSlot} -> ${e.side}:${e.targetUid}@${e.targetSlot} +${e.amount} = ${e.valueAfter}`);
         break;
-      case 'refire':
-        get(e.slot).refires.push(`${e.side}:${e.uid}@${e.sourceSlot} -> ${e.side}:${e.targetUid}@${e.targetSlot}`);
+      case 'copy':
+        get(e.slot).copies.push(`${e.side}:${e.uid}@${e.sourceSlot} -> ${e.side}:${e.targetUid}@${e.targetSlot} as ${e.side}:${e.asUid}@${e.asSlot} ${e.asCardId}`);
         break;
       case 'fizzle':
         get(e.slot).fizzles.push(`${e.side}:${e.uid}@${e.sourceSlot} ${e.reason}${e.targetSlot === null ? '' : ` ${e.targetSlot}`}`);
