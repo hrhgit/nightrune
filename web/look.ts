@@ -1,16 +1,19 @@
 // How engine objects look on the board. Shared by the game page and the scene preview page,
 // so a preview shows exactly the words and numbers the game shows.
 import { cardDef, type CardInstance } from '../engine/index.ts';
-import { cardValue } from '../present/text.ts';
+import { cardEffectParts } from '../present/text.ts';
 import { BOARD, drawStone, handTrayRect, STONE, type StoneLook } from './board.ts';
 
 export function look(card: CardInstance): StoneLook {
   const def = cardDef(card.cardId);
-  return { name: def.name, direction: def.direction, cost: def.owner === 'player' ? def.cost : null, value: cardValue(card), level: card.level };
+  return { name: def.name, direction: def.direction, cost: def.owner === 'player' ? def.cost : null, effect: cardEffectParts(card), level: card.level };
 }
 
 /** Board units of a hand card canvas: extra margin so the jagged outline, notches and shadow are not clipped. */
 export const HAND_CANVAS = { w: STONE.w, h: STONE.h + 12 } as const;
+
+/** Where the stone sits on a hand card canvas, in board units. */
+export const HAND_STONE_BOX = { x: 10, y: 8, w: STONE.w - 20, h: STONE.h - 12 } as const;
 
 /** A canvas showing one hand card, as the hand row draws it. */
 export function handCanvas(
@@ -27,7 +30,7 @@ export function handCanvas(
   if (cctx !== null) {
     prepare?.(c, cctx);
     cctx.scale(dpr, dpr);
-    drawStone(cctx, { x: 10, y: 8, w: STONE.w - 20, h: STONE.h - 12 }, card, look(card), {
+    drawStone(cctx, HAND_STONE_BOX, card, look(card), {
       glow: selected ? 0.8 : 0,
       highlight: 'none',
       pulse: 1,

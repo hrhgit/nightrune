@@ -9,22 +9,66 @@ export function cardName(cardId: string): string {
   return cardDef(cardId).name;
 }
 
-/** One-line description of what a card does at its level, read from the card table. */
-export function cardEffectText(card: Pick<CardInstance, 'cardId' | 'level' | 'growth'>): string {
-  const effect = cardDef(card.cardId).effect;
-  const kind = effect.kind;
+/**
+ * A piece of a card's effect text: plain words, or the card's value (the number in the sentence).
+ * The page draws the value in its own style, so it gets the number as a part rather than
+ * searching the sentence for digits.
+ */
+export interface EffectPart {
+  readonly kind: 'text' | 'value';
+  readonly text: string;
+}
+
+const plain = (text: string): EffectPart => ({ kind: 'text', text });
+const valuePart = (text: string): EffectPart => ({ kind: 'value', text });
+
+type Card = Pick<CardInstance, 'cardId' | 'level' | 'growth'>;
+
+/** The full sentence, for the aria-label and the log. The face uses the short form below. */
+function sentenceParts(card: Card, value: string): readonly EffectPart[] {
+  const kind = cardDef(card.cardId).effect.kind;
   switch (kind) {
     case 'attack':
-      return `Deals ${cardValue(card)} damage to the opposing slot.`;
+      return [plain('Deals '), valuePart(value), plain(' damage to the opposing slot.')];
     case 'block':
-      return `Blocks ${cardValue(card)} damage from the opposing slot only.`;
+      return [plain('Blocks '), valuePart(value), plain(' damage from the opposing slot only.')];
     case 'grow':
-      return `Gives the next card +${cardValue(card)} for the rest of the battle.`;
+      return [plain('Gives the next card '), valuePart(`+${value}`), plain(' for the rest of the battle.')];
     case 'copy':
-      return 'Acts as a copy of the previous card, in this slot.';
+      return [plain('Acts as a copy of the previous card, in this slot.')];
     default:
       return assertNever(kind);
   }
+}
+
+/**
+ * What a card does at its level, as the short phrase printed on its face ("Deal 9"), in parts.
+ * `shownValue` replaces the card's current value; the page passes a value taken from an event
+ * payload (a grow event's `valueAfter`) while a round is animating. The full sentence is
+ * `cardEffectText`; both take the value from the same place.
+ */
+export function cardEffectParts(card: Card, shownValue?: number): readonly EffectPart[] {
+  const kind = cardDef(card.cardId).effect.kind;
+  const value = String(shownValue ?? cardValue(card));
+  switch (kind) {
+    case 'attack':
+      return [plain('Deal '), valuePart(value)];
+    case 'block':
+      return [plain('Block '), valuePart(value)];
+    case 'grow':
+      return [plain('Next card '), valuePart(`+${value}`)];
+    case 'copy':
+      return [plain('Copy previous card')];
+    default:
+      return assertNever(kind);
+  }
+}
+
+/** One-line description of what a card does at its level, for the aria-label and the log. */
+export function cardEffectText(card: Card): string {
+  return sentenceParts(card, String(cardValue(card)))
+    .map((p) => p.text)
+    .join('');
 }
 
 const FIZZLE_TEXT: Record<FizzleReason, (e: Extract<GameEvent, { type: 'fizzle' }>) => string> = {
