@@ -16,17 +16,19 @@ import {
   startBattle,
   step,
   type BattleState,
+  type EnemyId,
   type GameEvent,
   type Owner,
 } from '../engine/index.ts';
 import { parseSeed, SEED_HELP } from '../present/seed.ts';
 import { battleEndText, cardEffectText, cardName, eventText, rejectText } from '../present/text.ts';
-import { BOARD, drawBoard, slotRect, type Floater } from './board.ts';
-import { floaterFor, handCanvas, look } from './look.ts';
+import { BOARD, drawBoard, slotRect, type Impact } from './board.ts';
+import { handCanvas, look } from './look.ts';
 
-const ENEMY_ID = 'training-dummy';
+const ENEMY_ID: EnemyId = 'training-dummy';
 const BEAT_MS = { slot: 700, emptySlot: 220, pre: 260 } as const;
-const FLOATER_MS = 1000;
+/** How long one block or damage event animates on the board. */
+const IMPACT_MS = 1000;
 
 function byId<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
@@ -85,7 +87,10 @@ interface App {
   shownHp: Record<Owner, number>;
   cursor: number | null;
   firing: Map<string, number>;
-  floaters: { side: Owner; slot: number; kind: Floater['kind']; text: string; born: number }[];
+  /** Block and damage events being animated, with the time each fired. */
+  impacts: { event: Impact['event']; born: number }[];
+  /** HP shown before the latest hit on each side, so the bar can show what was just lost. */
+  hpBefore: Record<Owner, number | null>;
   maxHp: Record<Owner, number>;
 }
 
@@ -109,7 +114,8 @@ function startGame(seed: number): void {
     shownHp: { player: opening.state.player.hp, enemy: opening.state.enemy.hp },
     cursor: null,
     firing: new Map(),
-    floaters: [],
+    impacts: [],
+    hpBefore: { player: null, enemy: null },
     maxHp: { player: opening.state.player.hp, enemy: opening.state.enemy.hp },
   };
   seedInput.value = String(seed);
@@ -404,9 +410,12 @@ function enterBeat(beat: Beat, now: number): void {
   app.firing = new Map();
   for (const e of beat.events) {
     if (e.type === 'trigger') app.firing.set(e.uid, 1);
-    if (e.type === 'damage') app.shownHp[e.target] = e.hpAfter;
-    // Shown with or without motion: reduced motion removes movement (see drawFloaters), not information.
-    if (e.type === 'damage' || e.type === 'block') app.floaters.push({ ...floaterFor(e), born: now });
+    if (e.type === 'damage') {
+      app.hpBefore[e.target] = app.shownHp[e.target];
+      app.shownHp[e.target] = e.hpAfter;
+    }
+    // Shown with or without motion: reduced motion removes movement (see drawStrikes), not information.
+    if (e.type === 'damage' || e.type === 'block') app.impacts.push({ event: e, born: now });
   }
   appendLog(beat.events);
   announce();
@@ -425,7 +434,8 @@ function finishAnimation(): void {
   app.shownHp = { player: anim.after.player.hp, enemy: anim.after.enemy.hp };
   app.cursor = null;
   app.firing = new Map();
-  app.floaters = [];
+  app.impacts = [];
+  app.hpBefore = { player: null, enemy: null };
   if (app.state.outcome === 'ongoing') {
     setHint('New hand drawn. Choose a card, then a slot.');
   } else {
@@ -451,7 +461,7 @@ function tick(now: number): void {
     const t = Math.min(1, (now - anim.beatStart) / current.duration);
     for (const uid of app.firing.keys()) app.firing.set(uid, 1 - 0.5 * t);
   }
-  app.floaters = app.floaters.filter((f) => now - f.born < FLOATER_MS);
+  app.impacts = app.impacts.filter((f) => now - f.born < IMPACT_MS);
   draw(now);
   requestAnimationFrame(tick);
 }
@@ -474,23 +484,26 @@ function draw(now: number): void {
   const targets = new Set<number>(
     selected === null || app.anim !== null ? [] : legalPlacements(app.state).flatMap((p) => (p.uid === selected ? [p.slot] : [])),
   );
-  const floaters: Floater[] = app.floaters.map((f) => ({ side: f.side, slot: f.slot, kind: f.kind, text: f.text, age: (now - f.born) / FLOATER_MS }));
+  const impacts: Impact[] = app.impacts.map((f) => ({ event: f.event, age: (now - f.born) / IMPACT_MS }));
+  const hp = (side: Owner) => {
+    const before = app.hpBefore[side];
+    const base = { now: app.shownHp[side], max: app.maxHp[side] };
+    return before === null ? base : { ...base, before };
+  };
   drawBoard(ctx, {
     seed: app.state.seed,
     time: now,
     motion: !motionQuery.matches,
+    enemyId: ENEMY_ID,
     enemyName: enemyDef(ENEMY_ID).name,
-    hp: {
-      player: { now: app.shownHp.player, max: app.maxHp.player },
-      enemy: { now: app.shownHp.enemy, max: app.maxHp.enemy },
-    },
+    hp: { player: hp('player'), enemy: hp('enemy') },
     lines: { player: app.state.player.line, enemy: app.state.enemy.line },
     look,
     cursor: app.cursor,
     firing: app.firing,
     targets,
     hoverSlot: app.hoverSlot,
-    floaters,
+    impacts,
   });
 }
 

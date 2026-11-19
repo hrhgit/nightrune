@@ -4,8 +4,8 @@
 // Add a scene here when a card or effect gets a new look, so it can be checked without playing.
 import type { GameEvent, Level, Owner } from '../engine/index.ts';
 
-/** Events that put a label over a stone. */
-export type FloaterSource = Extract<GameEvent, { type: 'damage' } | { type: 'block' }>;
+/** Events the board animates when a slot fires. */
+export type ImpactEvent = Extract<GameEvent, { type: 'damage' } | { type: 'block' }>;
 
 /** A card id at level 1, or [card id, level]. */
 export type CardRef = string | readonly [string, Level];
@@ -22,7 +22,8 @@ export interface SceneSpec {
   readonly hand?: readonly CardRef[];
   /** Index into `hand` of the selected card. */
   readonly selected?: number;
-  readonly hp?: Partial<Record<Owner, readonly [now: number, max: number]>>;
+  /** `before`: HP before the hit shown in `impacts`, so the bar can show what was lost. */
+  readonly hp?: Partial<Record<Owner, readonly [now: number, max: number, before?: number]>>;
   /** Turn-order cursor column, 1-based. */
   readonly cursor?: number;
   /** Stones glowing as they fire, with strength 0..1. */
@@ -30,8 +31,8 @@ export interface SceneSpec {
   /** Player slots shown as placement targets. */
   readonly targets?: readonly number[];
   readonly hover?: number;
-  /** Labels from events, at an age from 0 (just spawned) to 1 (gone). */
-  readonly floaters?: readonly { readonly event: FloaterSource; readonly age: number }[];
+  /** Block and damage events being animated, at an age from 0 (just fired) to 1 (gone). */
+  readonly impacts?: readonly { readonly event: ImpactEvent; readonly age: number }[];
   /** Frozen animation clock in ms; drives fire flicker and target pulse. */
   readonly time?: number;
 }
@@ -64,7 +65,7 @@ export const SCENES: readonly SceneSpec[] = [
   {
     id: 'parry-block',
     title: 'Parry blocks',
-    look: 'Slot 2 firing: "Blocked 3" above the Parry, no damage number, player HP full.',
+    look: 'Slot 2 firing: a ward on the Parry with "Blocked 3", nothing reaches the wayfarer, player HP full.',
     seed: 7,
     enemyLine: DUMMY,
     playerLine: ['slash', 'parry', null, 'parry'],
@@ -73,43 +74,55 @@ export const SCENES: readonly SceneSpec[] = [
       { side: 'enemy', slot: 2, glow: 1 },
       { side: 'player', slot: 2, glow: 1 },
     ],
-    floaters: [{ event: { type: 'block', round: 1, slot: 2, side: 'player', incoming: 3, blocked: 3 }, age: 0.25 }],
+    impacts: [{ event: { type: 'block', round: 1, slot: 2, side: 'player', incoming: 3, blocked: 3 }, age: 0.4 }],
   },
   {
     id: 'trade-hits',
     title: 'Both sides hit',
-    look: 'Slot 1 firing: damage numbers on both lines at once. The enemy Slash is placed by hand (R-17 shared effects).',
+    look: 'Slot 1 firing both ways: each figure flinches with its own damage number and a pale band on its HP bar. The enemy Slash is placed by hand (R-17 shared effects).',
     seed: 11,
     enemyLine: ['slash', 'dummy-swing', null, 'dummy-swing'],
     playerLine: [['slash', 2], null, null, null],
-    hp: { player: [26, 30], enemy: [18, 24] },
+    hp: { player: [26, 30, 30], enemy: [18, 24, 24] },
     cursor: 1,
     firing: [
       { side: 'enemy', slot: 1, glow: 1 },
       { side: 'player', slot: 1, glow: 1 },
     ],
-    floaters: [
-      { event: { type: 'damage', round: 2, slot: 1, target: 'enemy', amount: 6, hpAfter: 18 }, age: 0.3 },
-      { event: { type: 'damage', round: 2, slot: 1, target: 'player', amount: 4, hpAfter: 26 }, age: 0.3 },
+    impacts: [
+      { event: { type: 'damage', round: 2, slot: 1, target: 'enemy', amount: 6, hpAfter: 18 }, age: 0.6 },
+      { event: { type: 'damage', round: 2, slot: 1, target: 'player', amount: 4, hpAfter: 26 }, age: 0.6 },
     ],
   },
   {
     id: 'partial-block',
     title: 'Partial block',
-    look: 'Slot 4 firing: "Blocked 6" and a damage number on the same stone without overlapping.',
+    look: 'Slot 4 firing: ward with "Blocked 6" on the Parry, a thinner bolt goes on to the wayfarer for 3.',
     seed: 13,
     enemyLine: [null, 'dummy-swing', null, ['slash', 3]],
     playerLine: [null, null, null, ['parry', 2]],
-    hp: { player: [27, 30] },
+    hp: { player: [27, 30, 30] },
     cursor: 4,
     firing: [
       { side: 'enemy', slot: 4, glow: 1 },
       { side: 'player', slot: 4, glow: 1 },
     ],
-    floaters: [
-      { event: { type: 'block', round: 2, slot: 4, side: 'player', incoming: 9, blocked: 6 }, age: 0.3 },
-      { event: { type: 'damage', round: 2, slot: 4, target: 'player', amount: 3, hpAfter: 27 }, age: 0.3 },
+    impacts: [
+      { event: { type: 'block', round: 2, slot: 4, side: 'player', incoming: 9, blocked: 6 }, age: 0.42 },
+      { event: { type: 'damage', round: 2, slot: 4, target: 'player', amount: 3, hpAfter: 27 }, age: 0.42 },
     ],
+  },
+  {
+    id: 'bolt-flying',
+    title: 'Bolt in flight',
+    look: 'Slot 1 just fired: a bolt leaves the player Slash toward the enemy line; no number yet.',
+    seed: 11,
+    enemyLine: DUMMY,
+    playerLine: [['slash', 2], null, null, null],
+    hp: { enemy: [18, 24, 24] },
+    cursor: 1,
+    firing: [{ side: 'player', slot: 1, glow: 1 }],
+    impacts: [{ event: { type: 'damage', round: 2, slot: 1, target: 'enemy', amount: 6, hpAfter: 18 }, age: 0.16 }],
   },
   {
     id: 'full-lines',
@@ -123,13 +136,13 @@ export const SCENES: readonly SceneSpec[] = [
   {
     id: 'low-hp',
     title: 'Low HP',
-    look: 'Nearly empty HP bars on both sides, a big damage number on the enemy.',
+    look: 'Nearly empty HP bars on both sides (red when low), a big damage number on the dummy.',
     seed: 19,
     enemyLine: DUMMY,
     playerLine: [['slash', 3], null, null, null],
-    hp: { player: [2, 30], enemy: [1, 24] },
+    hp: { player: [2, 30], enemy: [1, 24, 10] },
     cursor: 1,
     firing: [{ side: 'player', slot: 1, glow: 0.8 }],
-    floaters: [{ event: { type: 'damage', round: 5, slot: 1, target: 'enemy', amount: 9, hpAfter: 1 }, age: 0.15 }],
+    impacts: [{ event: { type: 'damage', round: 5, slot: 1, target: 'enemy', amount: 9, hpAfter: 1 }, age: 0.62 }],
   },
 ];

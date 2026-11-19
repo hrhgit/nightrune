@@ -1,21 +1,12 @@
 // How engine objects look on the board. Shared by the game page and the scene preview page,
 // so a preview shows exactly the words and numbers the game shows.
-import { cardDef, type CardInstance, type Owner } from '../engine/index.ts';
+import { cardDef, type CardInstance } from '../engine/index.ts';
 import { cardValue } from '../present/text.ts';
-import { drawStone, STONE, type Floater, type StoneLook } from './board.ts';
-import type { FloaterSource } from './scenes.ts';
+import { drawStone, STONE, type StoneLook } from './board.ts';
 
 export function look(card: CardInstance): StoneLook {
   const def = cardDef(card.cardId);
   return { name: def.name, direction: def.direction, cost: def.owner === 'player' ? def.cost : null, value: cardValue(card), level: card.level };
-}
-
-/** The label an event puts over a stone. Damage and block labels show with or without motion. */
-export function floaterFor(e: FloaterSource): Omit<Floater, 'age'> {
-  const side: Owner = e.type === 'damage' ? e.target : e.side;
-  return e.type === 'damage'
-    ? { side, slot: e.slot, kind: 'damage', text: `−${e.amount}` }
-    : { side, slot: e.slot, kind: 'block', text: `Blocked ${e.blocked}` };
 }
 
 /** Board units of a hand card canvas: extra margin so the jagged outline, notches and shadow are not clipped. */

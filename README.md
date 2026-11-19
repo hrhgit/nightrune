@@ -36,7 +36,7 @@ npm run check         # typecheck + lint + tests + build (same as CI)
 
 ### Check how it looks
 
-`web/scene.html` (also at <https://hrhgit.github.io/nightrune/scene.html>) draws hand-built board moments from `web/scenes.ts` with the game's own drawing code, frozen in time: a Parry block, both sides hitting, full lines, low HP. Add a scene there instead of playing up to the moment you want to see.
+`web/scene.html` (also at <https://hrhgit.github.io/nightrune/scene.html>) draws hand-built board moments from `web/scenes.ts` with the game's own drawing code, frozen in time: a bolt in flight, a Parry block, a partial block, both sides hitting, full lines, low HP. Add a scene there instead of playing up to the moment you want to see.
 
 ```bash
 npm run scenes                    # every scene at desktop, phone and phone + reduced motion

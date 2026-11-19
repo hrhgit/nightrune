@@ -9,13 +9,13 @@ import '@fontsource/alegreya-sans/400.css';
 import '@fontsource/alegreya-sans/500.css';
 import '@fontsource/alegreya-sans/700.css';
 import './style.css';
-import { cardDef, createBattle, enemyDef, type CardInstance, type Level, type Owner, type Slot } from '../engine/index.ts';
-import { BOARD, drawBoard, type Floater } from './board.ts';
-import { floaterFor, handCanvas, look } from './look.ts';
+import { cardDef, createBattle, enemyDef, type CardInstance, type EnemyId, type Level, type Owner, type Slot } from '../engine/index.ts';
+import { BOARD, drawBoard } from './board.ts';
+import { handCanvas, look } from './look.ts';
 import type { SceneReport, TextMark, TextOverlap } from './scene-report.ts';
 import { SCENES, type CardRef, type SceneSpec } from './scenes.ts';
 
-const ENEMY_ID = 'training-dummy';
+const ENEMY_ID: EnemyId = 'training-dummy';
 // Starting HP comes from the engine, not a copy of the rule table.
 const opening = createBattle({ enemyId: ENEMY_ID, seed: 1 });
 const DEFAULT_HP: Record<Owner, number> = { player: opening.player.hp, enemy: opening.enemy.hp };
@@ -146,16 +146,16 @@ function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motio
     if (card === null || card === undefined) throw new Error(`${spec.id}: firing slot ${f.side} ${f.slot} is empty`);
     firing.set(card.uid, f.glow);
   }
-  const floaters: Floater[] = (spec.floaters ?? []).map((f) => ({ ...floaterFor(f.event), age: f.age }));
   const hp = (side: Owner) => {
-    const [now, max] = spec.hp?.[side] ?? [DEFAULT_HP[side], DEFAULT_HP[side]];
-    return { now, max };
+    const [now, max, before] = spec.hp?.[side] ?? [DEFAULT_HP[side], DEFAULT_HP[side]];
+    return before === undefined ? { now, max } : { now, max, before };
   };
   recordText(canvas, ctx, spec.id, 'board', marks);
   drawBoard(ctx, {
     seed: spec.seed,
     time: spec.time ?? 1000,
     motion,
+    enemyId: ENEMY_ID,
     enemyName: enemyDef(ENEMY_ID).name,
     hp: { player: hp('player'), enemy: hp('enemy') },
     lines,
@@ -164,7 +164,7 @@ function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motio
     firing,
     targets: new Set(spec.targets ?? []),
     hoverSlot: spec.hover ?? null,
-    floaters,
+    impacts: spec.impacts ?? [],
   });
 
   handCards.forEach((card, i) => {

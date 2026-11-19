@@ -47,7 +47,7 @@ describe('scene preview definitions', () => {
       });
 
       it('R-08: damage and block labels match the cards in their slot', () => {
-        for (const { event: e } of spec.floaters ?? []) {
+        for (const { event: e } of spec.impacts ?? []) {
           if (e.type === 'block') {
             const incoming = power(spec, other(e.side), e.slot).attack;
             expect(e.incoming).toBe(incoming);
@@ -58,6 +58,15 @@ describe('scene preview definitions', () => {
             expect(e.amount).toBe(Math.max(0, hit));
             expect(e.amount).toBeGreaterThan(0);
           }
+        }
+      });
+
+      it('HP shown matches the damage events: now is hpAfter, before minus now is the amount', () => {
+        for (const { event: e } of spec.impacts ?? []) {
+          if (e.type !== 'damage') continue;
+          const hp = spec.hp?.[e.target];
+          expect(hp?.[0]).toBe(e.hpAfter);
+          if (hp?.[2] !== undefined) expect(hp[2] - hp[0]).toBe(e.amount);
         }
       });
     });
