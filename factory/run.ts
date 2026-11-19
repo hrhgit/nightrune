@@ -460,6 +460,9 @@ async function work(t: Ticket): Promise<void> {
       }
       if (facts.stoppedBy !== null || !lastChecks.ok || facts.outsideArea.length > 0 || facts.lessonProblems.length > 0) break;
       record.lessons = Number(record.lessons ?? 0) + recordLessons(dir, t.number, open);
+      // The runner-written log is part of the change: check it against the area like everything else.
+      facts.outsideArea = outside(changedFiles(dir, base), area.paths);
+      if (facts.outsideArea.length > 0) break;
       facts.headSha = commit(`Agent: address Qodo findings on #${t.number} (round ${reviewRounds})`);
       stopAfterReview = next === 'commit-then-stop'; // review the kept fixes, then hand the dispute to a person
     }

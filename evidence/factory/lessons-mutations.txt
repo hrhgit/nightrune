@@ -6,3 +6,4 @@ Mutations of factory/lessons.ts and verdict.ts; each must fail at least one test
 - check file need not be changed:       Tests  1 failed | 22 passed (23)
 - none needs no reason:       Tests  1 failed | 22 passed (23)
 - verdict ignores lesson problems:       Tests  1 failed | 22 passed (23)
+- Added after Qodo review of PR 32: removing eslint.config.js from the area paths in factory/config.json: 2 tests failed in tests/factory-lessons.test.ts (one per area)

@@ -1,7 +1,9 @@
 // A fixed review finding only counts as a lesson when the facts back it: a lint rule must fire on its bad code
 // and stay quiet on its good code, and other layers must name a file the round changed.
+import { readFileSync } from 'node:fs';
 import { ESLint } from 'eslint';
 import { describe, expect, it } from 'vitest';
+import { outside } from '../factory/ticket.ts';
 import { lessonProblems, lessonRows, parseLessons, type Lesson, type LessonContext } from '../factory/lessons.ts';
 
 const eslint = new ESLint();
@@ -62,5 +64,12 @@ describe('factory lessons', () => {
   it('writes one markdown row per lesson', () => {
     const rows = lessonRows([lint, { finding: 'f2', layer: 'test', check: 'tests/a.test.ts' }], 12, new Map([['f1', 'clock | read'], ['f2', 'second']]));
     expect(rows).toBe('| #12 | clock \\| read | lint: `no-restricted-properties` in eslint.config.js |\n| #12 | second | test: `tests/a.test.ts` |');
+  });
+
+  it('every ticket area permits the files a lesson changes or the runner writes', () => {
+    const cfg = JSON.parse(readFileSync('factory/config.json', 'utf8')) as { areas: Record<string, { paths: string[] }> };
+    for (const [name, area] of Object.entries(cfg.areas)) {
+      expect(outside(['eslint.config.js', 'factory/lessons.md'], area.paths), `area ${name}`).toEqual([]);
+    }
   });
 });
