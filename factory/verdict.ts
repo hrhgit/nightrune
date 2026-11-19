@@ -76,3 +76,16 @@ export function judge(f: RunFacts): Judgement {
   const low = forHuman(f.findings);
   return { verdict: 'READY', reasons: low.map((x) => `for you to decide (${x.action_level}): ${x.title}`) };
 }
+
+export type AfterFix = 'review' | 'commit-then-stop' | 'stop' | 'stalled';
+
+/**
+ * What the runner does after the agent's fix round. Fixes for the findings the agent accepted are kept
+ * (checked, committed and reviewed) even when it disputes another finding; a dispute then goes to a person.
+ * A question or the agent's own commit stops the round without committing anything.
+ */
+export function afterFixRound(r: { readonly asked: boolean; readonly disputed: boolean; readonly ownCommit: boolean; readonly changed: boolean }): AfterFix {
+  if (r.ownCommit || r.asked) return 'stop';
+  if (!r.changed) return r.disputed ? 'stop' : 'stalled';
+  return r.disputed ? 'commit-then-stop' : 'review';
+}

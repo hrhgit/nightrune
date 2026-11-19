@@ -1,7 +1,7 @@
 // The factory's verdict is computed from facts, never from the agent's account of its work.
 import { describe, expect, it } from 'vitest';
 import { areaOf, criteria, outside } from '../factory/ticket.ts';
-import { judge, type Finding, type RunFacts } from '../factory/verdict.ts';
+import { afterFixRound, judge, type Finding, type RunFacts } from '../factory/verdict.ts';
 
 const head = 'a'.repeat(40);
 const clean: RunFacts = {
@@ -60,6 +60,21 @@ describe('factory verdict', () => {
 
   it('an unknown finding status counts as open', () => {
     expect(judge({ ...clean, findings: [finding('action_required', 'something_new')] }).verdict).toBe('NEEDS_FIX');
+  });
+});
+
+describe('factory fix round', () => {
+  const round = { asked: false, disputed: false, ownCommit: false, changed: true };
+  it('keeps the fixes the agent made when it disputes another finding: commit, review, then a person', () => {
+    // Issue #21's first run: the agent fixed one finding, disputed the other, and the fix was left uncommitted.
+    expect(afterFixRound({ ...round, disputed: true })).toBe('commit-then-stop');
+    expect(afterFixRound({ ...round, disputed: true, changed: false })).toBe('stop');
+  });
+  it('reviews again after a plain fix, stalls when nothing changed, stops on a question or the agent committing', () => {
+    expect(afterFixRound(round)).toBe('review');
+    expect(afterFixRound({ ...round, changed: false })).toBe('stalled');
+    expect(afterFixRound({ ...round, asked: true, disputed: true })).toBe('stop');
+    expect(afterFixRound({ ...round, ownCommit: true })).toBe('stop');
   });
 });
 
