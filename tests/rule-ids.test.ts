@@ -6,8 +6,11 @@ import { join } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-/** A rule or check id (R-05), or a requirement id (R-05.2). */
-const ID = /\b[RINA]-\d+(?:\.\d+)?\b/g;
+/**
+ * A rule or check id (R-05), or a requirement id (R-05.2). The whole dotted run is taken, so a
+ * malformed id such as R-05.2.1 is read as itself (and reported unknown), never as R-05.2.
+ */
+const ID = /\b[RINA]-\d+(?:\.\d+)*\b/g;
 
 export interface RuleRow {
   readonly id: string;
@@ -33,6 +36,11 @@ export function requirementRows(markdown: string): RuleRow[] {
 
 const parent = (id: string): string => id.replace(/\.\d+$/, '');
 const live = (status: string): boolean => /^(done|partial)\b/.test(status);
+const word = (status: string): string => status.split(/[:,.\s]/)[0] ?? '';
+/** The statuses a requirement may have; anything else is a typo and is reported. */
+const REQUIREMENT_STATUSES = new Set(['done', 'partial', 'planned', 'differs']);
+/** Rules and checks may also be `measured`: reported by a script, not enforced (A-3). */
+const RULE_STATUSES = new Set(['done', 'partial', 'planned', 'measured']);
 
 /** Modifiers under which Vitest does not run the test, or runs it only conditionally. */
 const NOT_RUN = new Set(['skip', 'todo', 'skipIf', 'runIf']);
@@ -82,28 +90,36 @@ export function ruleIdProblems(rows: readonly RuleRow[], tested: ReadonlySet<str
 
 /**
  * Problems between the rule table, the requirements table and the it() titles:
+ * - a requirement or rule whose status is not one of the known words;
  * - a done or partial requirement that no it()/test() title names;
- * - a requirement id a title names that the table lacks;
+ * - a requirement id that any title (describe() included) names but the table lacks;
  * - a game rule (R-) with no requirement, or a requirement whose rule does not exist;
  * - a rule whose status does not follow from its requirements: done when all are done,
  *   planned when all are planned, partial otherwise.
  */
-export function requirementProblems(rules: readonly RuleRow[], reqs: readonly RuleRow[], testedInIt: ReadonlySet<string>): string[] {
+export function requirementProblems(
+  rules: readonly RuleRow[],
+  reqs: readonly RuleRow[],
+  testedInIt: ReadonlySet<string>,
+  namedAnywhere: ReadonlySet<string> = testedInIt,
+): string[] {
   const out: string[] = [];
   const reqIds = new Set(reqs.map((r) => r.id));
-  for (const r of reqs) if (live(r.status) && !testedInIt.has(r.id)) out.push(`${r.id} is ${r.status.split(/[:\s]/)[0]} but no it() title names it`);
-  for (const id of [...testedInIt].filter((i) => i.includes('.')).sort()) if (!reqIds.has(id)) out.push(`a test names ${id}, which is not a requirement`);
+  for (const r of reqs) if (!REQUIREMENT_STATUSES.has(word(r.status))) out.push(`${r.id} has unknown status "${word(r.status)}"`);
+  for (const r of rules) if (!RULE_STATUSES.has(word(r.status))) out.push(`${r.id} has unknown status "${word(r.status)}"`);
+  for (const r of reqs) if (live(r.status) && !testedInIt.has(r.id)) out.push(`${r.id} is ${word(r.status)} but no it() title names it`);
+  for (const id of [...namedAnywhere].filter((i) => i.includes('.')).sort()) if (!reqIds.has(id)) out.push(`a test names ${id}, which is not a requirement`);
   const ruleIds = new Set(rules.map((r) => r.id));
   for (const r of reqs) if (!ruleIds.has(parent(r.id))) out.push(`${r.id} has no rule ${parent(r.id)}`);
   for (const rule of rules.filter((r) => r.id.startsWith('R-'))) {
-    const mine = reqs.filter((r) => parent(r.id) === rule.id).map((r) => r.status.split(/[:\s]/)[0] ?? '');
+    const mine = reqs.filter((r) => parent(r.id) === rule.id).map((r) => word(r.status));
     if (mine.length === 0) {
       out.push(`${rule.id} has no requirements`);
       continue;
     }
     const expected = mine.every((s) => s === 'done') ? 'done' : mine.every((s) => s === 'planned') ? 'planned' : 'partial';
-    const actual = rule.status.split(/[:\s]/)[0];
-    if (actual !== expected) out.push(`${rule.id} is ${actual ?? ''} but its requirements make it ${expected}`);
+    const actual = word(rule.status);
+    if (actual !== expected) out.push(`${rule.id} is ${actual} but its requirements make it ${expected}`);
   }
   return out;
 }
@@ -131,8 +147,11 @@ describe('every live requirement in RULES.md is named by an it() title, and rule
   const markdown = readFileSync(join(root, 'RULES.md'), 'utf8');
   const reqs = requirementRows(markdown);
   const testedInIt = new Set<string>();
+  const namedAnywhere = new Set<string>();
   for (const file of readdirSync(join(root, 'tests')).filter((f) => f.endsWith('.test.ts'))) {
-    for (const id of idsInTitles(readFileSync(join(root, 'tests', file), 'utf8'), 'it')) testedInIt.add(id);
+    const source = readFileSync(join(root, 'tests', file), 'utf8');
+    for (const id of idsInTitles(source, 'it')) testedInIt.add(id);
+    for (const id of idsInTitles(source)) namedAnywhere.add(id);
   }
 
   it('reads the requirements table', () => {
@@ -141,7 +160,7 @@ describe('every live requirement in RULES.md is named by an it() title, and rule
   });
 
   it('has no problems', () => {
-    expect(requirementProblems(ruleRows(markdown), reqs, testedInIt)).toEqual([]);
+    expect(requirementProblems(ruleRows(markdown), reqs, testedInIt, namedAnywhere)).toEqual([]);
   });
 });
 
@@ -171,6 +190,38 @@ describe('the rule-id check itself', () => {
       'R-04.1 has no rule R-04',
       'R-01 is done but its requirements make it partial',
       'R-02 is partial but its requirements make it done',
+    ]);
+  });
+
+  it('reports a misspelled status instead of reading it as partial', () => {
+    const rules = ruleRows('| R-01 | a | partial: x |\n| R-02 | b | dnoe |');
+    const reqs = requirementRows('| R-01.1 | a | done |\n| R-01.2 | b | plaanned [T1] |\n| R-02.1 | c | done |');
+    expect(requirementProblems(rules, reqs, new Set(['R-01.1', 'R-02.1']))).toEqual([
+      'R-01.2 has unknown status "plaanned"',
+      'R-02 has unknown status "dnoe"',
+      'R-02 is dnoe but its requirements make it done',
+    ]);
+  });
+
+  it('reads a malformed dotted id as itself, not as the requirement it starts with', () => {
+    expect([...idsInTitles("it('R-01.2.3 x', () => {})")]).toEqual(['R-01.2.3']);
+    // A sentence-ending full stop is not part of the id.
+    expect([...idsInTitles("it('holds R-01.2.', () => {})")]).toEqual(['R-01.2']);
+    const rules = ruleRows('| R-01 | a | done |');
+    const reqs = requirementRows('| R-01.2 | a | done |');
+    expect(requirementProblems(rules, reqs, idsInTitles("it('R-01.2.3 x', () => {})", 'it'))).toEqual([
+      'R-01.2 is done but no it() title names it',
+      'a test names R-01.2.3, which is not a requirement',
+    ]);
+  });
+
+  it('reports an unknown requirement id named only in a describe() title', () => {
+    const src = "describe('R-01.9 and I-1.2 group', () => { it('R-01.1 x', () => {}) })";
+    const rules = ruleRows('| R-01 | a | done |\n| I-1 | b | done |');
+    const reqs = requirementRows('| R-01.1 | a | done |');
+    expect(requirementProblems(rules, reqs, idsInTitles(src, 'it'), idsInTitles(src))).toEqual([
+      'a test names I-1.2, which is not a requirement',
+      'a test names R-01.9, which is not a requirement',
     ]);
   });
 

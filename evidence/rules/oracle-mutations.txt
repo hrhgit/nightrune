@@ -17,3 +17,13 @@ battle does not end until slot 4 after 0 HP        => tsc errors 0; Tests 2 fail
 An earlier attempt at "block carried" referenced an undeclared variable (2 tsc errors);
 it is not counted. The round-limit break was first missed (battles of 3 rounds never reach
 round 20); the full-battle test was added for it, then it failed as listed.
+
+After Qodo's first review of PR #17 (finding: final HP never compared with the stored state):
+enemy HP not stored at battle end (events correct) => tsc errors 0;
+  old tests/oracle.ts (981bbf2): Tests 3 passed (3)   <- missed
+  new tests/oracle.ts (compares after.*.hp): Tests 2 failed | 1 passed (3)
+
+tests/rule-ids.test.ts self-tests, each run with its fix undone:
+id regex back to (?:\.\d+)?          => "reads a malformed dotted id as itself" failed
+status check removed                 => "reports a misspelled status" failed
+unknown ids read from it() only      => "reports an unknown requirement id named only in a describe() title" failed

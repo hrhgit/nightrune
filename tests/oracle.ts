@@ -34,6 +34,8 @@ export interface RoundOutcome {
   end: 'won' | 'lost' | null;
   /** Growth on every line card after the round, by uid. */
   growth: Record<string, number>;
+  /** HP of both sides after the round: for the engine, as stored in the state, not as its events report. */
+  hp: Record<Owner, number>;
 }
 
 export interface OracleOptions {
@@ -131,11 +133,11 @@ export function expectedRound(state: BattleState, opts: OracleOptions): RoundOut
     slots.push(out);
 
     // R-10.1–R-10.3.
-    if (hp.player <= 0) return { slots, end: 'lost', growth: growthOf(lines) };
-    if (hp.enemy <= 0) return { slots, end: 'won', growth: growthOf(lines) };
+    if (hp.player <= 0) return { slots, end: 'lost', growth: growthOf(lines), hp: { ...hp } };
+    if (hp.enemy <= 0) return { slots, end: 'won', growth: growthOf(lines), hp: { ...hp } };
   }
   // R-11.1.
-  return { slots, end: round >= RULES.maxRounds ? 'lost' : null, growth: growthOf(lines) };
+  return { slots, end: round >= RULES.maxRounds ? 'lost' : null, growth: growthOf(lines), hp: { ...hp } };
 }
 
 function growthOf(lines: Record<Owner, Slot[]>): Record<string, number> {
@@ -198,5 +200,5 @@ export function actualRound(before: BattleState, events: readonly GameEvent[], a
     slots.push(o);
   }
   const lines: Record<Owner, Slot[]> = { player: [...after.player.line], enemy: [...after.enemy.line] };
-  return { slots, end, growth: growthOf(lines) };
+  return { slots, end, growth: growthOf(lines), hp: { player: after.player.hp, enemy: after.enemy.hp } };
 }
