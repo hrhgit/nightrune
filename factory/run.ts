@@ -287,7 +287,7 @@ async function work(t: Ticket): Promise<void> {
     must('git', ['worktree', 'add', '-B', branch, dir, 'origin/main']);
     const base = must('git', ['rev-parse', 'origin/main']).trim();
     record.base = base;
-    note('worktree', { dir, branch, base: record.base });
+    note('worktree', { dir: dir.replace(homedir(), '~'), branch, base: record.base }); // records are public: no home path
     must('npm', ['ci', '--no-audit', '--no-fund'], { cwd: dir, timeoutMin: 15 });
 
     // Implement, then retry on failed checks, up to the limit.

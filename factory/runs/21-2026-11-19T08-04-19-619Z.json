@@ -1,0 +1,129 @@
+{
+  "run": "2026-11-19T08-04-19-619Z",
+  "issue": 21,
+  "title": "Card faces show what the card does",
+  "criteria": 8,
+  "area": "web",
+  "startedAt": "2026-11-19T08:04:19.619Z",
+  "executor": "claude",
+  "model": "claude-opus-5-5",
+  "base": "c7135b00ea57b6522301797d4b3eeef17ad2ceaf",
+  "implementAttempts": 1,
+  "pr": "https://github.com/hrhgit/nightrune/pull/27",
+  "reviewRounds": 1,
+  "finishedAt": "2026-11-19T08:19:01.120Z",
+  "verdict": "NEEDS_HUMAN",
+  "reasons": [
+    "agent asked: the agent disagrees with a finding:\n# Findings not changed in code\n\n## 19a5b74f-388e-4ee1-8eda-3b5746d0665c: Phone players cannot read card effects\n\nThe measurements in the finding are right (they are the ones recorded in\n`evidence/issue21/scenes.md`). The cause is not `CARD_TEXT`, and no value of `CARD_TEXT` fixes it.\n\n- The board is a fixed 960×540 canvas (`web/board.ts:16`) scaled to the viewport. At 375 px wide the\n  scale is about 0.39, so 12 screen px of text needs about 31 board px. The smallest stone is\n  104×94 board px; \"Blocks 9 damage from the opposing slot only.\" cannot fit on it at 31 px. Raising\n  `minPx` would only make the text overflow the stone.\n- This was already true before this change: the stone names on the same board draw at 4.1 px on\n  the phone viewport (same scene report). `factory/rule-coverage.md` (row \"Text on the board is\n  readable and does not collide\") records it: \"at 375px the board's smallest is 4.1px (line stone\n  names) ... so the phone layout needs its own fix\", and says the text-size report is reported\n  only, not a gate.\n- Hand cards, which are drawn at full size below the board on narrow screens, show 7.1 px; that\n  is the same hand layout that existed before this issue.\n\nThe fix is a phone layout for the board (larger stones or a different arrangement under ~720 px),\nwhich is a separate ticket, not a change to the card text sizes in this issue. A person should\ndecide whether to open it."
+  ],
+  "facts": {
+    "ticketOk": true,
+    "question": "the agent disagrees with a finding:\n# Findings not changed in code\n\n## 19a5b74f-388e-4ee1-8eda-3b5746d0665c: Phone players cannot read card effects\n\nThe measurements in the finding are right (they are the ones recorded in\n`evidence/issue21/scenes.md`). The cause is not `CARD_TEXT`, and no value of `CARD_TEXT` fixes it.\n\n- The board is a fixed 960×540 canvas (`web/board.ts:16`) scaled to the viewport. At 375 px wide the\n  scale is about 0.39, so 12 screen px of text needs about 31 board px. The smallest stone is\n  104×94 board px; \"Blocks 9 damage from the opposing slot only.\" cannot fit on it at 31 px. Raising\n  `minPx` would only make the text overflow the stone.\n- This was already true before this change: the stone names on the same board draw at 4.1 px on\n  the phone viewport (same scene report). `factory/rule-coverage.md` (row \"Text on the board is\n  readable and does not collide\") records it: \"at 375px the board's smallest is 4.1px (line stone\n  names) ... so the phone layout needs its own fix\", and says the text-size report is reported\n  only, not a gate.\n- Hand cards, which are drawn at full size below the board on narrow screens, show 7.1 px; that\n  is the same hand layout that existed before this issue.\n\nThe fix is a phone layout for the board (larger stones or a different arrangement under ~720 px),\nwhich is a separate ticket, not a change to the card text sizes in this issue. A person should\ndecide whether to open it.",
+    "outsideArea": [],
+    "emptyChange": false,
+    "checksPassed": true,
+    "review": {
+      "status": "completed",
+      "commitSha": "8d2b41b09ad4a5b3888b9b21577d695f26b39fd9"
+    },
+    "headSha": "8d2b41b09ad4a5b3888b9b21577d695f26b39fd9",
+    "findings": [
+      {
+        "id": "19a5b74f-388e-4ee1-8eda-3b5746d0665c",
+        "title": "Phone players cannot read card effects",
+        "action_level": "remediation_recommended",
+        "attribution_status": "pending"
+      },
+      {
+        "id": "7b034927-c6a9-4800-8dc1-e2eece0c26a2",
+        "title": "Full boards redo text layout each frame",
+        "action_level": "remediation_recommended",
+        "attribution_status": "pending"
+      }
+    ],
+    "attempts": 1,
+    "maxAttempts": 3,
+    "stalled": false,
+    "stoppedBy": null
+  },
+  "findingsForHuman": [],
+  "events": [
+    {
+      "at": "2026-11-19T08:04:20.510Z",
+      "step": "ticket",
+      "detail": {
+        "number": 21,
+        "title": "Card faces show what the card does",
+        "labels": [
+          "ready-for-agent",
+          "area:web"
+        ]
+      }
+    },
+    {
+      "at": "2026-11-19T08:04:24.078Z",
+      "step": "worktree",
+      "detail": {
+        "dir": "~/.nightrune-factory/issue-21",
+        "branch": "agent/issue-21",
+        "base": "c7135b00ea57b6522301797d4b3eeef17ad2ceaf"
+      }
+    },
+    {
+      "at": "2026-11-19T08:05:11.285Z",
+      "step": "agent start",
+      "detail": {
+        "executor": "claude",
+        "chars": 2929
+      }
+    },
+    {
+      "at": "2026-11-19T08:12:47.107Z",
+      "step": "agent end",
+      "detail": {
+        "exit": 0,
+        "reportChars": 3834
+      }
+    },
+    {
+      "at": "2026-11-19T08:12:53.068Z",
+      "step": "checks",
+      "detail": {
+        "attempt": 1,
+        "passed": true,
+        "outside": []
+      }
+    },
+    {
+      "at": "2026-11-19T08:12:57.501Z",
+      "step": "pr",
+      "detail": "https://github.com/hrhgit/nightrune/pull/27"
+    },
+    {
+      "at": "2026-11-19T08:17:08.538Z",
+      "step": "review",
+      "detail": {
+        "status": "completed",
+        "commit": "8d2b41b09ad4a5b3888b9b21577d695f26b39fd9",
+        "head": "8d2b41b09ad4a5b3888b9b21577d695f26b39fd9",
+        "findings": 2
+      }
+    },
+    {
+      "at": "2026-11-19T08:17:08.538Z",
+      "step": "agent start",
+      "detail": {
+        "executor": "claude",
+        "chars": 2416
+      }
+    },
+    {
+      "at": "2026-11-19T08:19:01.117Z",
+      "step": "agent end",
+      "detail": {
+        "exit": 0,
+        "reportChars": 2347
+      }
+    }
+  ]
+}
