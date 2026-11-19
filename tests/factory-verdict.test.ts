@@ -16,6 +16,7 @@ const clean: RunFacts = {
   attempts: 1,
   maxAttempts: 3,
   stalled: false,
+  stoppedBy: null,
 };
 const finding = (action_level: string, attribution_status = 'pending'): Finding => ({ id: action_level, title: `a ${action_level} finding`, action_level, attribution_status });
 
@@ -47,13 +48,14 @@ describe('factory verdict', () => {
     expect(judge({ ...clean, findings: [finding('action_required', 'implemented'), finding('action_required', 'dismissed')] }).verdict).toBe('READY');
   });
 
-  it('NEEDS_HUMAN at the retry limit, on a stall, a question, a change outside the area, no change, or a bad ticket', () => {
+  it('NEEDS_HUMAN at the retry limit, on a stall, a question, a change outside the area, no change, a bad ticket, or a stopped run', () => {
     expect(judge({ ...clean, checksPassed: false, attempts: 3 }).verdict).toBe('NEEDS_HUMAN');
     expect(judge({ ...clean, stalled: true }).verdict).toBe('NEEDS_HUMAN');
     expect(judge({ ...clean, question: 'which limit?' }).verdict).toBe('NEEDS_HUMAN');
     expect(judge({ ...clean, outsideArea: ['web/main.ts'] }).verdict).toBe('NEEDS_HUMAN');
     expect(judge({ ...clean, emptyChange: true }).verdict).toBe('NEEDS_HUMAN');
     expect(judge({ ...clean, ticketOk: false }).verdict).toBe('NEEDS_HUMAN');
+    expect(judge({ ...clean, stoppedBy: 'the run failed: push rejected' })).toEqual({ verdict: 'NEEDS_HUMAN', reasons: ['the run failed: push rejected'] });
   });
 
   it('an unknown finding status counts as open', () => {

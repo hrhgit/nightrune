@@ -35,6 +35,8 @@ export interface RunFacts {
   readonly maxAttempts: number;
   /** The same blocking findings stayed open after a fix round. */
   readonly stalled: boolean;
+  /** The run could not go on: setup failed, an open PR already exists, or the agent committed by itself. */
+  readonly stoppedBy: string | null;
 }
 
 export const isOpen = (f: Finding): boolean => !CLOSED.has(f.attribution_status);
@@ -48,6 +50,7 @@ export interface Judgement {
 
 export function judge(f: RunFacts): Judgement {
   const human: string[] = [];
+  if (f.stoppedBy !== null) human.push(f.stoppedBy);
   if (!f.ticketOk) human.push('ticket has no acceptance criteria or not exactly one area label');
   if (f.question !== null) human.push(`agent asked: ${f.question}`);
   if (f.outsideArea.length > 0) human.push(`changed files outside its area: ${f.outsideArea.join(', ')}`);

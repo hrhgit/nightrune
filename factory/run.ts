@@ -34,7 +34,6 @@ const WORK = join(homedir(), '.nightrune-factory');
 const LOCK = join(WORK, 'lock');
 const QUESTION = '.factory-question.md';
 const DISAGREE = '.factory-disagree.md';
-const REPORT = '.factory-report.md';
 const startedAt = new Date();
 const runId = startedAt.toISOString().replace(/[:.]/g, '-');
 const events: { readonly at: string; readonly step: string; readonly detail?: unknown }[] = [];
@@ -79,28 +78,36 @@ function pickTicket(issue: number | undefined): Ticket | null {
   return oldest === undefined ? null : { ...oldest, labels: oldest.labels.map((l) => l.name) };
 }
 
-function relabel(issue: number, add: string[], remove: string[]): void {
+/** Returns the error text, or null if GitHub accepted the change. */
+function relabel(issue: number, add: string[], remove: string[]): string | null {
   const args = ['issue', 'edit', String(issue), '--repo', CFG.repo];
   for (const a of add) args.push('--add-label', a);
   for (const r of remove) args.push('--remove-label', r);
-  run('gh', args);
+  const r = run('gh', args);
+  return r.status === 0 ? null : `gh issue edit failed: ${(r.stderr || r.stdout).trim().slice(-300)}`;
+}
+
+function openPr(branch: string): string | null {
+  const list = JSON.parse(gh('pr', 'list', '--repo', CFG.repo, '--head', branch, '--state', 'open', '--json', 'url')) as { url: string }[];
+  return list[0]?.url ?? null;
 }
 
 // ---------- the agent ----------
 
 function runAgent(executor: Area['executor'], prompt: string, dir: string): string {
-  rmSync(join(dir, REPORT), { force: true });
+  const reportFile = `${dir}.report.md`; // outside the worktree, so it can never be committed
+  rmSync(reportFile, { force: true });
   note('agent start', { executor, chars: prompt.length });
   const t = CFG.agentTimeoutMinutes;
   const r =
     executor === 'codex'
-      ? run('codex', ['exec', '-C', dir, '-m', CFG.executors.codex.model, '-c', `model_reasoning_effort="${CFG.executors.codex.effort}"`, '-s', 'workspace-write', '--skip-git-repo-check', '-o', join(dir, REPORT), '-'], { cwd: dir, input: prompt, timeoutMin: t })
+      ? run('codex', ['exec', '-C', dir, '-m', CFG.executors.codex.model, '-c', `model_reasoning_effort="${CFG.executors.codex.effort}"`, '-s', 'workspace-write', '--skip-git-repo-check', '-o', reportFile, '-'], { cwd: dir, input: prompt, timeoutMin: t })
       : run(
           'claude',
           ['-p', '--model', CFG.executors.claude.model, '--permission-mode', 'acceptEdits', '--output-format', 'text', '--allowedTools', 'Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash(npm run check)', 'Bash(npm run test*)', 'Bash(npm run scenes*)', 'Bash(npx vitest *)', 'Bash(npx tsc *)', 'Bash(npx eslint *)', 'Bash(git diff*)', 'Bash(git status*)'],
           { cwd: dir, input: prompt, timeoutMin: t },
         );
-  const report = existsSync(join(dir, REPORT)) ? readFileSync(join(dir, REPORT), 'utf8') : r.stdout;
+  const report = existsSync(reportFile) ? readFileSync(reportFile, 'utf8') : r.stdout;
   note('agent end', { exit: r.status ?? r.signal, reportChars: report.length });
   return report.trim();
 }
@@ -113,13 +120,17 @@ function readAndRemove(dir: string, name: string): string | null {
   return text || null;
 }
 
-function changedFiles(dir: string): string[] {
-  return must('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: dir })
-    .split('\n')
-    .filter(Boolean)
-    .map((l) => l.slice(3).replace(/^.* -> /, ''))
-    .filter((f) => !f.startsWith('.factory-'));
+const lines = (s: string): string[] => s.split('\n').filter((l) => l !== '' && !l.startsWith('.factory-'));
+
+/** Every file that differs from the base: committed, staged, unstaged or untracked. */
+function changedFiles(dir: string, base: string): string[] {
+  const tracked = lines(must('git', ['diff', '--name-only', base], { cwd: dir }));
+  const untracked = lines(must('git', ['ls-files', '--others', '--exclude-standard'], { cwd: dir }));
+  return [...new Set([...tracked, ...untracked])].sort();
 }
+/** Files not yet committed. */
+const uncommitted = (dir: string): string[] => lines(must('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: dir }).replace(/^.{3}/gm, ''));
+const headOf = (dir: string): string => must('git', ['rev-parse', 'HEAD'], { cwd: dir }).trim();
 
 function checks(dir: string): { ok: boolean; output: string } {
   const r = run('npm', ['run', 'check'], { cwd: dir, timeoutMin: 20 });
@@ -190,15 +201,32 @@ async function waitForReview(prUrl: string, head: string): Promise<ReturnType<ty
 
 // ---------- the run ----------
 
+/** Creates the lock file exclusively; a lock left by a dead process is taken over once. */
+function takeLock(): boolean {
+  const create = (): boolean => {
+    try {
+      writeFileSync(LOCK, String(process.pid), { flag: 'wx' });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  if (create()) return true;
+  let pid = 0;
+  try {
+    pid = Number(readFileSync(LOCK, 'utf8'));
+  } catch {
+    // removed between the two calls
+  }
+  if (pid > 0 && run('kill', ['-0', String(pid)]).status === 0) return false;
+  rmSync(LOCK, { force: true });
+  return create();
+}
+
 async function main(): Promise<void> {
   const { values } = parseArgs({ options: { issue: { type: 'string' }, dry: { type: 'boolean' } } });
   mkdirSync(WORK, { recursive: true });
-  if (existsSync(LOCK)) {
-    const pid = Number(readFileSync(LOCK, 'utf8'));
-    const alive = run('kill', ['-0', String(pid)]).status === 0;
-    if (alive) return void console.log(`factory: run ${pid} is still going`);
-  }
-  writeFileSync(LOCK, String(process.pid));
+  if (!takeLock()) return void console.log('factory: another run is still going');
   try {
     const ticket = pickTicket(values.issue === undefined ? undefined : Number(values.issue));
     if (ticket === null) return void console.log(`factory: no open issue labelled ${CFG.labels.trigger}`);
@@ -231,119 +259,139 @@ async function work(t: Ticket): Promise<void> {
     attempts: 0,
     maxAttempts: CFG.maxAttempts,
     stalled: false,
+    stoppedBy: null,
   };
   const record: Record<string, unknown> = { run: runId, issue: t.number, title: t.title, criteria: crit.length, area: areaName, startedAt: startedAt.toISOString() };
   if (!facts.ticketOk || area === undefined) return finish(t, facts, record, null, '');
 
-  relabel(t.number, [CFG.labels.working], [CFG.labels.trigger, CFG.labels.help, CFG.labels.done]);
-  const executor = area.executor;
-  record.executor = executor;
-  record.model = executor === 'codex' ? `${CFG.executors.codex.model} (${CFG.executors.codex.effort})` : CFG.executors.claude.model;
-
-  const branch = `agent/issue-${t.number}`;
-  const dir = join(WORK, `issue-${t.number}`);
-  must('git', ['fetch', 'origin', 'main']);
-  run('git', ['worktree', 'remove', '--force', dir]);
-  rmSync(dir, { recursive: true, force: true });
-  must('git', ['worktree', 'add', '-B', branch, dir, 'origin/main']);
-  record.base = must('git', ['rev-parse', 'origin/main']).trim();
-  note('worktree', { dir, branch, base: record.base });
-  must('npm', ['ci', '--no-audit', '--no-fund'], { cwd: dir, timeoutMin: 15 });
-
-  // Implement, then retry on failed checks, up to the limit.
-  let report = '';
-  let prompt = implementPrompt(t, area);
-  let lastChecks = { ok: false, output: '' };
-  while (facts.attempts < CFG.maxAttempts) {
-    facts.attempts += 1;
-    report = runAgent(executor, prompt, dir);
-    facts.question = readAndRemove(dir, QUESTION);
-    if (facts.question !== null) break;
-    const files = changedFiles(dir);
-    facts.emptyChange = files.length === 0;
-    if (facts.emptyChange) break;
-    facts.outsideArea = outside(files, area.paths);
-    lastChecks = checks(dir);
-    facts.checksPassed = lastChecks.ok;
-    note('checks', { attempt: facts.attempts, passed: lastChecks.ok, outside: facts.outsideArea });
-    if (lastChecks.ok && facts.outsideArea.length === 0) break;
-    prompt = retryChecksPrompt(t, area, facts.outsideArea, lastChecks.ok ? '' : lastChecks.output);
-  }
-  record.implementAttempts = facts.attempts;
-  if (facts.question !== null || facts.emptyChange || facts.outsideArea.length > 0 || facts.checksPassed !== true) {
-    return finish(t, facts, record, null, report, lastChecks.output);
-  }
-
-  // Commit, push, open the PR.
-  const commit = (message: string): string => {
-    must('git', ['add', '-A'], { cwd: dir });
-    const trailer = executor === 'claude' ? 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' : `Implemented-By: Codex (${CFG.executors.codex.model})`;
-    must('git', ['commit', '-q', '-m', `${message}\n\nFactory run ${runId}, issue #${t.number}.\n\n${trailer}`], { cwd: dir });
-    must('git', ['push', '-q', '--force-with-lease', '-u', 'origin', branch], { cwd: dir });
-    return must('git', ['rev-parse', 'HEAD'], { cwd: dir }).trim();
-  };
-  facts.headSha = commit(`Agent: ${t.title} (#${t.number})`);
-  const body = `Closes #${t.number}
-
-Opened by the Nightrune factory (\`factory/run.ts\`, run \`${runId}\`). Implemented by **${executor}** (${String(record.model)}). The factory's verdict comes from \`factory/verdict.ts\` (checks, area, Qodo review of the PR head), not from the agent's report.
-
-## Acceptance criteria (from the issue)
-
-${crit.map((c) => `- [ ] ${c}`).join('\n')}
-
-## Factory checks
-
-- Files changed only inside area \`${areaName}\`: yes
-- \`npm run check\`: passed (attempt ${facts.attempts} of ${CFG.maxAttempts})
-
-## Agent's report (information only)
-
-${report || '(no report)'}
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)`;
-  const prUrl = must('gh', ['pr', 'create', '--repo', CFG.repo, '--head', branch, '--base', 'main', '--title', `${t.title} (#${t.number})`, '--body-file', '-'], { cwd: dir, input: body }).trim();
-  record.pr = prUrl;
-  note('pr', prUrl);
-  facts.attempts = 0; // from here on, attempts counts review fix rounds
-
-  // Review loop: fix valid blocking findings until clean, stalled or out of rounds.
-  let reviewRounds = 0;
-  let previous = '';
-  for (;;) {
-    const seen = await waitForReview(prUrl, facts.headSha);
-    facts.review = seen.review;
-    facts.findings = seen.findings;
-    if (seen.review?.commitSha !== facts.headSha || seen.review.status !== 'completed') break;
-    const open = blocking(seen.findings);
-    const ids = open.map((f) => f.id).sort().join(',');
-    if (open.length === 0) break;
-    if (ids === previous) {
-      facts.stalled = true;
-      break;
+  try {
+    const branch = `agent/issue-${t.number}`;
+    const existing = openPr(branch);
+    if (existing !== null) {
+      facts.stoppedBy = `an open PR already exists for this issue (${existing}); close it or take the ${CFG.labels.trigger} label off`;
+      return finish(t, facts, record, existing, '');
     }
-    if (reviewRounds >= CFG.maxAttempts) break;
-    previous = ids;
-    reviewRounds += 1;
-    facts.attempts = reviewRounds;
-    report = runAgent(executor, findingsPrompt(t, area, open, seen.raw), dir);
-    facts.question = readAndRemove(dir, QUESTION);
-    const disagreement = readAndRemove(dir, DISAGREE);
-    if (disagreement !== null) facts.question = `the agent disagrees with a finding:\n${disagreement}`;
-    const files = changedFiles(dir);
-    if (facts.question !== null) break;
-    if (files.length === 0) {
-      facts.stalled = true; // findings open and the agent changed nothing
-      break;
+    const claimed = relabel(t.number, [CFG.labels.working], [CFG.labels.trigger, CFG.labels.help, CFG.labels.done]);
+    if (claimed !== null) throw new Error(`could not claim the issue: ${claimed}`);
+    const executor = area.executor;
+    record.executor = executor;
+    record.model = executor === 'codex' ? `${CFG.executors.codex.model} (${CFG.executors.codex.effort})` : CFG.executors.claude.model;
+
+    const dir = join(WORK, `issue-${t.number}`);
+    must('git', ['fetch', 'origin', 'main']);
+    run('git', ['worktree', 'remove', '--force', dir]);
+    rmSync(dir, { recursive: true, force: true });
+    must('git', ['worktree', 'add', '-B', branch, dir, 'origin/main']);
+    const base = must('git', ['rev-parse', 'origin/main']).trim();
+    record.base = base;
+    note('worktree', { dir, branch, base: record.base });
+    must('npm', ['ci', '--no-audit', '--no-fund'], { cwd: dir, timeoutMin: 15 });
+
+    // Implement, then retry on failed checks, up to the limit.
+    let report = '';
+    let prompt = implementPrompt(t, area);
+    let lastChecks = { ok: false, output: '' };
+    while (facts.attempts < CFG.maxAttempts) {
+      facts.attempts += 1;
+      report = runAgent(executor, prompt, dir);
+      facts.question = readAndRemove(dir, QUESTION);
+      if (facts.question !== null) break;
+      if (headOf(dir) !== base) {
+        facts.stoppedBy = 'the agent made its own commits; only the factory commits';
+        break;
+      }
+      const files = changedFiles(dir, base);
+      facts.emptyChange = files.length === 0;
+      if (facts.emptyChange) break;
+      facts.outsideArea = outside(files, area.paths);
+      lastChecks = checks(dir);
+      facts.checksPassed = lastChecks.ok;
+      note('checks', { attempt: facts.attempts, passed: lastChecks.ok, outside: facts.outsideArea });
+      if (lastChecks.ok && facts.outsideArea.length === 0) break;
+      prompt = retryChecksPrompt(t, area, facts.outsideArea, lastChecks.ok ? '' : lastChecks.output);
     }
-    facts.outsideArea = outside(files.concat(must('git', ['diff', '--name-only', 'origin/main...HEAD'], { cwd: dir }).split('\n').filter(Boolean)), area.paths);
-    lastChecks = checks(dir);
-    facts.checksPassed = lastChecks.ok;
-    note('checks', { round: reviewRounds, passed: lastChecks.ok, outside: facts.outsideArea });
-    if (!lastChecks.ok || facts.outsideArea.length > 0) break;
-    facts.headSha = commit(`Agent: address Qodo findings on #${t.number} (round ${reviewRounds})`);
+    record.implementAttempts = facts.attempts;
+    if (facts.stoppedBy !== null || facts.question !== null || facts.emptyChange || facts.outsideArea.length > 0 || facts.checksPassed !== true) {
+      return finish(t, facts, record, null, report, lastChecks.output);
+    }
+
+    // Commit, push, open the PR.
+    const commit = (message: string): string => {
+      must('git', ['add', '-A', '--', '.', ':(exclude).factory-*'], { cwd: dir });
+      const trailer = executor === 'claude' ? 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' : `Implemented-By: Codex (${CFG.executors.codex.model})`;
+      must('git', ['commit', '-q', '-m', `${message}\n\nFactory run ${runId}, issue #${t.number}.\n\n${trailer}`], { cwd: dir });
+      must('git', ['push', '-q', '--force-with-lease', '-u', 'origin', branch], { cwd: dir });
+      return headOf(dir);
+    };
+    facts.headSha = commit(`Agent: ${t.title} (#${t.number})`);
+    const body = `Closes #${t.number}
+
+  Opened by the Nightrune factory (\`factory/run.ts\`, run \`${runId}\`). Implemented by **${executor}** (${String(record.model)}). The factory's verdict comes from \`factory/verdict.ts\` (checks, area, Qodo review of the PR head), not from the agent's report.
+
+  ## Acceptance criteria (from the issue)
+
+  ${crit.map((c) => `- [ ] ${c}`).join('\n')}
+
+  ## Factory checks
+
+  - Files changed only inside area \`${areaName}\`: yes
+  - \`npm run check\`: passed (attempt ${facts.attempts} of ${CFG.maxAttempts})
+
+  ## Agent's report (information only)
+
+  ${report || '(no report)'}
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)`;
+    const prUrl = must('gh', ['pr', 'create', '--repo', CFG.repo, '--head', branch, '--base', 'main', '--title', `${t.title} (#${t.number})`, '--body-file', '-'], { cwd: dir, input: body }).trim();
+    record.pr = prUrl;
+    note('pr', prUrl);
+    facts.attempts = 0; // from here on, attempts counts review fix rounds
+
+    // Review loop: fix valid blocking findings until clean, stalled or out of rounds.
+    let reviewRounds = 0;
+    let previous = '';
+    for (;;) {
+      const seen = await waitForReview(prUrl, facts.headSha);
+      facts.review = seen.review;
+      facts.findings = seen.findings;
+      if (seen.review?.commitSha !== facts.headSha || seen.review.status !== 'completed') break;
+      const open = blocking(seen.findings);
+      const ids = open.map((f) => f.id).sort().join(',');
+      if (open.length === 0) break;
+      if (ids === previous) {
+        facts.stalled = true;
+        break;
+      }
+      if (reviewRounds >= CFG.maxAttempts) break;
+      previous = ids;
+      reviewRounds += 1;
+      facts.attempts = reviewRounds;
+      report = runAgent(executor, findingsPrompt(t, area, open, seen.raw), dir);
+      facts.question = readAndRemove(dir, QUESTION);
+      const disagreement = readAndRemove(dir, DISAGREE);
+      if (disagreement !== null) facts.question = `the agent disagrees with a finding:\n${disagreement}`;
+      if (facts.question !== null) break;
+      if (headOf(dir) !== facts.headSha) {
+        facts.stoppedBy = 'the agent made its own commits; only the factory commits';
+        break;
+      }
+      if (uncommitted(dir).length === 0) {
+        facts.stalled = true; // findings open and the agent changed nothing
+        break;
+      }
+      facts.outsideArea = outside(changedFiles(dir, base), area.paths);
+      lastChecks = checks(dir);
+      facts.checksPassed = lastChecks.ok;
+      note('checks', { round: reviewRounds, passed: lastChecks.ok, outside: facts.outsideArea });
+      if (!lastChecks.ok || facts.outsideArea.length > 0) break;
+      facts.headSha = commit(`Agent: address Qodo findings on #${t.number} (round ${reviewRounds})`);
+    }
+    record.reviewRounds = reviewRounds;
+    return finish(t, facts, record, prUrl, report, lastChecks.ok ? '' : lastChecks.output);
+  } catch (e) {
+    facts.stoppedBy = `the run failed: ${e instanceof Error ? e.message : String(e)}`;
+    return finish(t, facts, record, typeof record.pr === 'string' ? record.pr : null, '');
   }
-  record.reviewRounds = reviewRounds;
-  return finish(t, facts, record, prUrl, report, lastChecks.ok ? '' : lastChecks.output);
 }
 
 function finish(t: Ticket, facts: RunFacts, record: Record<string, unknown>, prUrl: string | null, report: string, checkOutput = ''): void {
@@ -366,8 +414,15 @@ ${j.reasons.length ? j.reasons.map((r) => `- ${r}`).join('\n') : '- all gates me
 ${prUrl ? `\nPR: ${prUrl}` : ''}${checkOutput ? `\n\n<details><summary>End of npm run check</summary>\n\n\`\`\`\n${checkOutput}\n\`\`\`\n</details>` : ''}${!prUrl && report ? `\n\n<details><summary>Agent's report</summary>\n\n${report}\n</details>` : ''}
 
 The verdict is computed by \`factory/verdict.ts\` from the checks and the review. A person decides whether to merge.`;
-  run('gh', ['issue', 'comment', String(t.number), '--repo', CFG.repo, '--body-file', '-'], { input: comment });
-  relabel(t.number, [j.verdict === 'READY' ? CFG.labels.done : CFG.labels.help], [CFG.labels.working, CFG.labels.trigger]);
+  const commented = run('gh', ['issue', 'comment', String(t.number), '--repo', CFG.repo, '--body-file', '-'], { input: comment });
+  const labelled = relabel(t.number, [j.verdict === 'READY' ? CFG.labels.done : CFG.labels.help], [CFG.labels.working, CFG.labels.trigger]);
+  const githubErrors = [commented.status === 0 ? null : `gh issue comment failed: ${(commented.stderr || commented.stdout).trim().slice(-300)}`, labelled].filter((x) => x !== null);
+  if (githubErrors.length > 0) {
+    // The verdict stands, but the issue does not show it; say so in the record and fail the process.
+    writeFileSync(file, `${JSON.stringify({ ...out, githubErrors }, null, 2)}\n`);
+    note('github update failed', githubErrors);
+    process.exitCode = 1;
+  }
 }
 
 await main();
