@@ -65,7 +65,7 @@ Status: **done** = implemented and tested; **partial** = implemented in part (se
 
 | Id | Rule | Status |
 |---|---|---|
-| R-16 | Randomness is used only for shuffling and for the three-card reward choice after a battle, and all of it comes from the seed. The same seed with the same actions must produce exactly the same result. | partial: seeded shuffle done (generator state lives in the battle state; engine lint bans clock and `Math.random`); reward choice [T11]; replay command [T06] |
+| R-16 | Randomness is used only for shuffling and for the three-card reward choice after a battle, and all of it comes from the seed. The same seed with the same actions must produce exactly the same result. | partial: seeded shuffle done (generator state lives in the battle state; engine lint bans clock and `Math.random`); `npm run play -- --record` and `npm run replay` check a battle's final-state hash; reward choice [T11] |
 
 ## Enemies
 
