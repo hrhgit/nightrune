@@ -103,7 +103,7 @@ function onScreen(raw: readonly RawMark[]): TextMark[] {
   }));
 }
 
-function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motion: boolean): void {
+function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motion: boolean, redrawn: () => void): void {
   const article = document.createElement('article');
   article.className = 'scene';
   article.id = `scene-${spec.id}`;
@@ -174,6 +174,7 @@ function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motio
       for (let i = marks.length - 1; i >= 0; i--) if (marks[i]?.el === canvas) marks.splice(i, 1);
       ctx.clearRect(0, 0, BOARD.width, BOARD.height);
       draw(inTray);
+      redrawn();
     }),
   );
 
@@ -204,9 +205,15 @@ async function main(): Promise<void> {
   await document.fonts.ready;
   const motion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const marks: RawMark[] = [];
+  // Publish (and republish after a resize redraw), so the report always describes the board as it
+  // is on screen now, not as it was first drawn.
+  let ready = false;
+  const publish = () => {
+    if (ready) window.__sceneReport = { ready: true, scenes: chosen.map((s) => s.id), marks: onScreen(marks), overlaps: overlapsOf(marks), errors };
+  };
   for (const spec of chosen) {
     try {
-      renderScene(spec, host, marks, motion);
+      renderScene(spec, host, marks, motion, publish);
     } catch (err) {
       errors.push(`${spec.id}: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -218,7 +225,8 @@ async function main(): Promise<void> {
     p.textContent = e;
     host.append(p);
   }
-  window.__sceneReport = { ready: true, scenes: chosen.map((s) => s.id), marks: onScreen(marks), overlaps: overlapsOf(marks), errors };
+  ready = true;
+  publish();
 }
 
 main().catch((err: unknown) => {
