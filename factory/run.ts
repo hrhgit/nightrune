@@ -8,6 +8,7 @@
 //   npm run factory -- --dry        show the ticket it would take and its gate G0, change nothing
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
 import { withoutHome } from './record.ts';
 import { join } from 'node:path';
@@ -95,19 +96,30 @@ function openPr(branch: string): string | null {
 
 // ---------- the agent ----------
 
-function runAgent(executor: Area['executor'], prompt: string, dir: string): string {
+/** One agent conversation for the whole run: later prompts (check failures, Qodo findings) resume it. */
+interface Session { id: string | null }
+
+function runAgent(executor: Area['executor'], prompt: string, dir: string, session: Session): string {
   const reportFile = `${dir}.report.md`; // outside the worktree, so it can never be committed
   rmSync(reportFile, { force: true });
-  note('agent start', { executor, chars: prompt.length });
+  const resuming = session.id !== null;
+  note('agent start', { executor, chars: prompt.length, resuming });
   const t = CFG.agentTimeoutMinutes;
-  const r =
-    executor === 'codex'
-      ? run('codex', ['exec', '-C', dir, '-m', CFG.executors.codex.model, '-c', `model_reasoning_effort="${CFG.executors.codex.effort}"`, '-s', 'workspace-write', '--skip-git-repo-check', '-o', reportFile, '-'], { cwd: dir, input: prompt, timeoutMin: t })
-      : run(
-          'claude',
-          ['-p', '--model', CFG.executors.claude.model, '--permission-mode', 'acceptEdits', '--output-format', 'text', '--allowedTools', 'Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash(npm run check)', 'Bash(npm run test*)', 'Bash(npm run scenes*)', 'Bash(npx vitest *)', 'Bash(npx tsc *)', 'Bash(npx eslint *)', 'Bash(git diff*)', 'Bash(git status*)'],
-          { cwd: dir, input: prompt, timeoutMin: t },
-        );
+  let r;
+  if (executor === 'codex') {
+    const model = ['-m', CFG.executors.codex.model, '-c', `model_reasoning_effort="${CFG.executors.codex.effort}"`];
+    r = resuming
+      ? run('codex', ['exec', 'resume', '--json', ...model, '-c', 'sandbox_mode="workspace-write"', '--skip-git-repo-check', '-o', reportFile, session.id as string, '-'], { cwd: dir, input: prompt, timeoutMin: t })
+      : run('codex', ['exec', '--json', '-C', dir, ...model, '-s', 'workspace-write', '--skip-git-repo-check', '-o', reportFile, '-'], { cwd: dir, input: prompt, timeoutMin: t });
+    if (!resuming) session.id = /"type":"thread\.started","thread_id":"([^"]+)"/.exec(r.stdout)?.[1] ?? null;
+  } else {
+    if (!resuming) session.id = randomUUID();
+    r = run(
+      'claude',
+      ['-p', resuming ? '--resume' : '--session-id', session.id as string, '--model', CFG.executors.claude.model, '--permission-mode', 'acceptEdits', '--output-format', 'text', '--allowedTools', 'Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash(npm run check)', 'Bash(npm run test*)', 'Bash(npm run scenes*)', 'Bash(npx vitest *)', 'Bash(npx tsc *)', 'Bash(npx eslint *)', 'Bash(git diff*)', 'Bash(git status*)'],
+      { cwd: dir, input: prompt, timeoutMin: t },
+    );
+  }
   const report = existsSync(reportFile) ? readFileSync(reportFile, 'utf8') : r.stdout;
   note('agent end', { exit: r.status ?? r.signal, reportChars: report.length });
   return report.trim();
@@ -292,12 +304,13 @@ async function work(t: Ticket): Promise<void> {
     must('npm', ['ci', '--no-audit', '--no-fund'], { cwd: dir, timeoutMin: 15 });
 
     // Implement, then retry on failed checks, up to the limit.
+    const session: Session = { id: null };
     let report = '';
     let prompt = implementPrompt(t, area);
     let lastChecks = { ok: false, output: '' };
     while (facts.attempts < CFG.maxAttempts) {
       facts.attempts += 1;
-      report = runAgent(executor, prompt, dir);
+      report = runAgent(executor, prompt, dir, session);
       facts.question = readAndRemove(dir, QUESTION);
       if (facts.question !== null) break;
       if (headOf(dir) !== base) {
@@ -372,7 +385,7 @@ async function work(t: Ticket): Promise<void> {
       previous = ids;
       reviewRounds += 1;
       facts.attempts = reviewRounds;
-      report = runAgent(executor, findingsPrompt(t, area, open, seen.raw), dir);
+      report = runAgent(executor, findingsPrompt(t, area, open, seen.raw), dir, session);
       const asked = readAndRemove(dir, QUESTION);
       const disagreement = readAndRemove(dir, DISAGREE);
       const said = [asked, disagreement === null ? null : `the agent disagrees with a finding:\n${disagreement}`].filter((x) => x !== null);
@@ -390,7 +403,20 @@ async function work(t: Ticket): Promise<void> {
       lastChecks = checks(dir);
       facts.checksPassed = lastChecks.ok;
       note('checks', { round: reviewRounds, passed: lastChecks.ok, outside: facts.outsideArea });
-      if (!lastChecks.ok || facts.outsideArea.length > 0) break;
+      // A fix that breaks the checks is repaired in place, not thrown away: keep working on the
+      // same uncommitted changes, up to the retry limit.
+      for (let repair = 1; (!lastChecks.ok || facts.outsideArea.length > 0) && repair <= CFG.maxAttempts; repair += 1) {
+        report = runAgent(executor, retryChecksPrompt(t, area, facts.outsideArea, lastChecks.ok ? '' : lastChecks.output), dir, session);
+        if (headOf(dir) !== facts.headSha) {
+          facts.stoppedBy = 'the agent made its own commits; only the factory commits';
+          break;
+        }
+        facts.outsideArea = outside(changedFiles(dir, base), area.paths);
+        lastChecks = checks(dir);
+        facts.checksPassed = lastChecks.ok;
+        note('checks', { round: reviewRounds, repair, passed: lastChecks.ok, outside: facts.outsideArea });
+      }
+      if (facts.stoppedBy !== null || !lastChecks.ok || facts.outsideArea.length > 0) break;
       facts.headSha = commit(`Agent: address Qodo findings on #${t.number} (round ${reviewRounds})`);
       stopAfterReview = next === 'commit-then-stop'; // review the kept fixes, then hand the dispute to a person
     }
