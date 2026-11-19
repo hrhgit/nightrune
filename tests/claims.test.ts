@@ -11,11 +11,20 @@ const BANNED = /\b(balanced|balancing|fun|bug[- ]free|bugless|no bugs)\b/gi;
 /** Banned claim words outside code spans and fenced code blocks, with their line numbers. */
 export function claimsIn(markdown: string): { line: number; word: string }[] {
   const out: { line: number; word: string }[] = [];
-  let fenced = false;
+  // An open fence closes only on a line of the same character, at least as long (CommonMark).
+  let fence: { char: string; length: number } | null = null;
   markdown.split('\n').forEach((text, i) => {
-    if (/^\s*(```|~~~)/.test(text)) fenced = !fenced;
-    if (fenced) return;
-    for (const m of text.replace(/`[^`]*`/g, '').matchAll(BANNED)) out.push({ line: i + 1, word: m[0] });
+    const marker = /^\s{0,3}(`{3,}|~{3,})/.exec(text)?.[1];
+    if (fence !== null) {
+      if (marker !== undefined && marker[0] === fence.char && marker.length >= fence.length && text.trim() === marker) fence = null;
+      return;
+    }
+    if (marker !== undefined) {
+      fence = { char: marker[0] ?? '`', length: marker.length };
+      return;
+    }
+    // Code spans may use any run of backticks: `x`, ``x``, ``` x ```.
+    for (const m of text.replace(/(`+)[\s\S]*?\1/g, '').matchAll(BANNED)) out.push({ line: i + 1, word: m[0] });
   });
   return out;
 }
@@ -47,5 +56,11 @@ describe('the claims check itself', () => {
       { line: 1, word: 'balanced' },
       { line: 6, word: 'Bug-free' },
     ]);
+  });
+
+  it('handles double-backtick spans and a tilde line inside a backtick fence', () => {
+    expect(claimsIn('Write ``fun`` in code.')).toEqual([]);
+    const md = '````\n~~~\nfun\n````\nThis is fun.';
+    expect(claimsIn(md)).toEqual([{ line: 5, word: 'fun' }]);
   });
 });
