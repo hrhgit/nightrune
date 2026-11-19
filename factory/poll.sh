@@ -7,8 +7,11 @@ REPO="${NIGHTRUNE_REPO:?set by the launchd job}"
 if [ ! -d "$R" ]; then git -C "$REPO" worktree add -q --detach "$R" origin/main; fi
 cd "$R"
 git fetch -q origin main
-# Run records written by earlier runs are untracked here and later arrive on main; drop them so checkout cannot abort.
-git clean -fdq factory/runs
+# A record the run wrote here may later arrive on main (redacted); drop only those, so checkout cannot abort.
+# Records not on main yet are the only copy of the evidence and stay.
+for f in $(git ls-files --others --exclude-standard factory/runs); do
+  if git cat-file -e "origin/main:$f" 2>/dev/null; then rm -f "$f"; fi
+done
 git checkout -q --detach origin/main
 if [ ! -d node_modules ] || [ package-lock.json -nt node_modules/.package-lock.json ]; then npm ci --no-audit --no-fund -s; fi
 exec npm run -s factory
