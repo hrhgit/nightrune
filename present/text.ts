@@ -20,8 +20,8 @@ export function cardEffectText(card: Pick<CardInstance, 'cardId' | 'level' | 'gr
       return `Blocks ${cardValue(card)} damage from the opposing slot only.`;
     case 'grow':
       return `Gives the next card +${cardValue(card)} for the rest of the battle.`;
-    case 'refire':
-      return 'Fires the previous card again, in this slot. A card is fired again at most once per round.';
+    case 'copy':
+      return 'Acts as a copy of the previous card, in this slot.';
     default:
       return assertNever(kind);
   }
@@ -31,7 +31,7 @@ const FIZZLE_TEXT: Record<FizzleReason, (e: Extract<GameEvent, { type: 'fizzle' 
   'no-slot': (e) => `there is no ${e.target} slot`,
   'empty-slot': (e) => `slot ${e.targetSlot} is empty`,
   'no-value': (e) => `the card in slot ${e.targetSlot} has no value to change`,
-  'already-refired': (e) => `the card in slot ${e.targetSlot} was already fired again this round`,
+  'nothing-to-copy': (e) => `the card in slot ${e.targetSlot} copies nothing`,
 };
 
 /** "Slot 3: " for a card firing in its own slot; "Slot 3 (from slot 2): " for one fired again by another card. */
@@ -67,8 +67,10 @@ export function eventText(e: GameEvent, enemyId: string): string {
       return `Slot ${e.slot}: ${who(e.target)} ${e.target === 'player' ? 'take' : 'takes'} ${e.amount} damage, ${e.hpAfter} HP left.`;
     case 'grow':
       return `${at(e)}${cardName(e.cardId)} gives ${cardName(e.targetCardId)} in slot ${e.targetSlot} +${e.amount} for the battle (now ${e.valueAfter}).`;
-    case 'refire':
-      return `${at(e)}${cardName(e.cardId)} fires ${cardName(e.targetCardId)} in slot ${e.targetSlot} again.`;
+    case 'copy':
+      return e.asCardId === e.targetCardId
+        ? `${at(e)}${cardName(e.cardId)} copies ${cardName(e.targetCardId)} in slot ${e.targetSlot}.`
+        : `${at(e)}${cardName(e.cardId)} copies ${cardName(e.targetCardId)} in slot ${e.targetSlot}, which copies ${cardName(e.asCardId)}.`;
     case 'fizzle':
       return `${at(e)}${cardName(e.cardId)} fizzles: ${FIZZLE_TEXT[e.reason](e)}.`;
     case 'battle-end':

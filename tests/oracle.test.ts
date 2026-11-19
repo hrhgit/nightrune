@@ -1,7 +1,7 @@
 // R-07 R-08 R-10 R-11 R-12 R-13 R-14: the engine against an independent reading of the rules
 // (tests/oracle.ts). Every card arrangement, alone and together, on both lines, over several
 // rounds; then whole games with seeded random placements. Any result the rules do not allow
-// is a difference; the only accepted kind is the one RULES.md marks "differs" (R-12.3).
+// is a difference, and none is accepted.
 import { describe, expect, it } from 'vitest';
 import { CARDS, type CardId } from '../data/cards.ts';
 import { RULES } from '../data/rules.ts';
@@ -23,14 +23,12 @@ function enemyLine(ids: readonly (CardId | null)[]): Slot[] {
   return ids.map((id, i) => (id === null ? null : { uid: `e${i + 1}`, cardId: id, level: 1, growth: 0 }));
 }
 
-type Verdict = 'same' | 'known R-12.3' | 'differs';
+type Verdict = 'same' | 'differs';
 
 function judge(before: BattleState, after: BattleState, events: Parameters<typeof actualRound>[1]): { verdict: Verdict; expected: RoundOutcome; actual: RoundOutcome } {
   const actual = actualRound(before, events, after);
-  const expected = expectedRound(before, { refireNeedsValue: true });
-  if (JSON.stringify(actual) === JSON.stringify(expected)) return { verdict: 'same', expected, actual };
-  const asEngine = expectedRound(before, { refireNeedsValue: false });
-  return { verdict: JSON.stringify(actual) === JSON.stringify(asEngine) ? 'known R-12.3' : 'differs', expected, actual };
+  const expected = expectedRound(before);
+  return { verdict: JSON.stringify(actual) === JSON.stringify(expected) ? 'same' : 'differs', expected, actual };
 }
 
 /** A few enemy lines: the Training Dummy, and seeded random lines over every card in the table. */
@@ -47,8 +45,8 @@ function enemyLines(): (CardId | null)[][] {
 }
 
 describe('R-07 R-08 R-10 R-11 R-12 R-13 R-14 every arrangement of cards does only what the rules allow', () => {
-  it('R-12.3 matches the independent reading for every player line × 25 enemy lines × 3 rounds; the only difference is the known one', () => {
-    const counts: Record<Verdict, number> = { same: 0, 'known R-12.3': 0, differs: 0 };
+  it('R-13.5 matches the independent reading for every player line × 25 enemy lines × 3 rounds', () => {
+    const counts: Record<Verdict, number> = { same: 0, differs: 0 };
     const firstDiffs: unknown[] = [];
     for (const enemy of enemyLines()) {
       for (const player of allLines(PLAYER_CARDS)) {
@@ -65,17 +63,14 @@ describe('R-07 R-08 R-10 R-11 R-12 R-13 R-14 every arrangement of cards does onl
     }
     expect(firstDiffs).toEqual([]);
     expect(counts.differs).toBe(0);
-    // Echo right after Echo exists among these lines, so the known difference must show up;
-    // if it stops showing up, the engine changed and RULES.md R-12.3 should be revisited.
-    expect(counts['known R-12.3']).toBeGreaterThan(0);
     // Most battles last the 3 rounds; a few end early when a side reaches 0.
-    expect(counts.same + counts['known R-12.3']).toBeGreaterThan(625 * 25 * 2);
+    expect(counts.same).toBeGreaterThan(625 * 25 * 2);
   });
 });
 
 describe('R-10 R-11 every player line, played to the end of the battle', () => {
   it('R-11.1 matches the independent reading in every round up to the round limit', () => {
-    const counts: Record<Verdict, number> = { same: 0, 'known R-12.3': 0, differs: 0 };
+    const counts: Record<Verdict, number> = { same: 0, differs: 0 };
     const endings = { 'round-limit': 0, other: 0 };
     for (const player of allLines(PLAYER_CARDS)) {
       // Enough HP on both sides that most battles reach the round limit.
@@ -93,7 +88,7 @@ describe('R-10 R-11 every player line, played to the end of the battle', () => {
     expect(endings['round-limit']).toBeGreaterThan(0);
     // Every battle ended exactly once, and no battle ran past the round limit.
     expect(endings['round-limit'] + endings.other).toBe(625);
-    expect(counts.same + counts['known R-12.3']).toBeLessThanOrEqual(625 * RULES.maxRounds);
+    expect(counts.same).toBeLessThanOrEqual(625 * RULES.maxRounds);
   });
 });
 
@@ -120,7 +115,7 @@ function playRandom(seed: number, check: (before: BattleState, action: Parameter
 
 describe('R-03 R-04 R-05 R-06 R-07 R-08 R-10 R-11 R-12 R-13 R-14 whole games with seeded random placements', () => {
   it('R-05.1 R-05.5 R-06.1 R-04.1 R-03.1 every placement and every round of 300 games does only what the rules allow', () => {
-    const counts: Record<Verdict, number> = { same: 0, 'known R-12.3': 0, differs: 0 };
+    const counts: Record<Verdict, number> = { same: 0, differs: 0 };
     const problems: string[] = [];
     const ended = { won: 0, lost: 0 };
     for (let seed = 1; seed <= 300; seed++) {

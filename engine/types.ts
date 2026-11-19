@@ -22,8 +22,11 @@ export type Effect =
   | { readonly kind: 'block'; readonly amount: LevelValues }
   /** Growth (R-14) on the target card for the rest of the battle; the target is chosen by R-12. */
   | { readonly kind: 'grow'; readonly target: 'next'; readonly amount: LevelValues }
-  /** Re-fires the target card once, in the current slot (R-13); the target is chosen by R-12. No value of its own. */
-  | { readonly kind: 'refire'; readonly target: 'previous' };
+  /**
+   * Acts as a copy of the target card, in this card's own slot (R-13); the target is chosen by R-12.
+   * No value of its own.
+   */
+  | { readonly kind: 'copy'; readonly target: 'previous' };
 
 /** R-12: which neighbour a targeted effect aims at. */
 export type TargetSide = 'next' | 'previous';
@@ -118,8 +121,8 @@ export type FizzleReason =
   | 'empty-slot'
   /** The target card has no value that can change. */
   | 'no-value'
-  /** R-13: the target card was already re-fired this round. */
-  | 'already-refired';
+  /** R-13.6: the target is itself a copy card whose copy reaches nothing. */
+  | 'nothing-to-copy';
 
 export type EndReason = 'enemy-defeated' | 'player-defeated' | 'both-defeated' | 'round-limit';
 
@@ -168,7 +171,7 @@ export type GameEvent =
   | {
       /**
        * R-14: the card in `sourceSlot` gave the card in `targetSlot` growth; `valueAfter` is its new value.
-       * `slot` is the slot the cursor is on; it differs from `sourceSlot` when the grow card was re-fired (R-13).
+       * When a copy card acts as a grow card (R-13), `uid`, `cardId` and `sourceSlot` are the copy card's.
        */
       readonly type: 'grow';
       readonly round: number;
@@ -184,8 +187,11 @@ export type GameEvent =
       readonly valueAfter: number;
     }
   | {
-      /** R-13: the card in `sourceSlot` re-fires the card in `targetSlot`; its effect counts in `slot`. */
-      readonly type: 'refire';
+      /**
+       * R-13: the card in `sourceSlot` copies the card in `targetSlot` and acts, in its own slot, as
+       * `asCardId` (the card at the end of a chain of copies; R-13.5).
+       */
+      readonly type: 'copy';
       readonly round: number;
       readonly slot: number;
       readonly side: Owner;
@@ -195,6 +201,7 @@ export type GameEvent =
       readonly targetSlot: number;
       readonly targetUid: string;
       readonly targetCardId: string;
+      readonly asCardId: string;
     }
   | {
       /** R-12, R-13: the effect of the card in `sourceSlot` had no valid target and did nothing. */

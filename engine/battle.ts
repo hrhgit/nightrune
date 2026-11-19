@@ -224,7 +224,7 @@ interface Contribution {
 
 /**
  * The card's current value: its table value at its level plus its growth (R-14).
- * Null for a card with no value (a re-fire card): it shows no number and growth cannot change it (R-12).
+ * Null for a card with no value (a copy card): it shows no number and growth cannot change it (R-12).
  * The page and the CLI show this number; they never add growth themselves.
  */
 export function cardValue(card: Pick<CardInstance, 'cardId' | 'level' | 'growth'>): number | null {
@@ -235,7 +235,7 @@ export function cardValue(card: Pick<CardInstance, 'cardId' | 'level' | 'growth'
     case 'block':
     case 'grow':
       return (effect.amount[card.level - 1] ?? 0) + card.growth;
-    case 'refire':
+    case 'copy':
       return null;
     default:
       return assertNever(kind);
@@ -253,33 +253,37 @@ interface Fired {
 /** One side's firings in one slot of one round. */
 interface Firing {
   readonly round: number;
-  /** The slot the cursor is on: every attack and block counts here, re-fired ones included (R-13). */
+  /** The slot the cursor is on: every attack and block counts here. */
   readonly slot: number;
   readonly side: Owner;
   readonly events: GameEvent[];
-  /** R-13: uids re-fired so far this round on this side. */
-  readonly refired: Set<string>;
 }
 
-/**
- * Fires the card at `index`: its own effect, plus any growth or re-fire it causes.
- * The cursor's own card and a re-fired card go through the same path, so a re-fired card
- * does exactly what it would do on its own, with its current value (R-13, R-14).
- */
+/** Fires the card at `index`: its own effect, plus any growth or copy it causes. */
 function fireAt(line: readonly Slot[], index: number, f: Firing): Fired {
   const card = line[index];
   if (card === null || card === undefined) return { line, contribution: NOTHING };
-  const effect = cardDef(card.cardId).effect;
+  return fireAs(line, index, card, card, f);
+}
+
+/**
+ * The card `stone` at `index` fires with the effect and value of `acting`: itself, or the card it
+ * copies (R-13). Targets are counted from `index`, and events name `stone`, the card on the line.
+ * A copy and the card it copies go through this same path, so a copy does exactly what that card
+ * would do in this slot, with its current value (R-13, R-14).
+ */
+function fireAs(line: readonly Slot[], index: number, stone: CardInstance, acting: CardInstance, f: Firing): Fired {
+  const effect = cardDef(acting.cardId).effect;
   const kind = effect.kind;
   switch (kind) {
     case 'attack':
-      return { line, contribution: { attack: cardValue(card) ?? 0, block: 0 } };
+      return { line, contribution: { attack: cardValue(acting) ?? 0, block: 0 } };
     case 'block':
-      return { line, contribution: { attack: 0, block: cardValue(card) ?? 0 } };
+      return { line, contribution: { attack: 0, block: cardValue(acting) ?? 0 } };
     case 'grow':
-      return { line: fireGrow(line, index, card, effect.target, f), contribution: NOTHING };
-    case 'refire':
-      return fireRefire(line, index, card, effect.target, f);
+      return { line: fireGrow(line, index, stone, cardValue(acting), effect.target, f), contribution: NOTHING };
+    case 'copy':
+      return fireCopy(line, index, stone, effect.target, f);
     default:
       return assertNever(kind);
   }
@@ -313,12 +317,14 @@ function fizzle(f: Firing, index: number, source: CardInstance, target: TargetSi
   });
 }
 
-/** R-12, R-14: a grow effect gives its target growth for the battle; returns the line with the grown card. */
-function fireGrow(line: readonly Slot[], index: number, source: CardInstance, target: TargetSide, f: Firing): readonly Slot[] {
+/**
+ * R-12, R-14: a grow effect of `amount` from the card `source` at `index` gives its target growth
+ * for the battle; returns the line with the grown card.
+ */
+function fireGrow(line: readonly Slot[], index: number, source: CardInstance, amount: number | null, target: TargetSide, f: Firing): readonly Slot[] {
   const aim = targetOf(line, index, source, target, f);
   if (aim === null) return line;
   const before = cardValue(aim.card);
-  const amount = cardValue(source);
   if (before === null || amount === null) {
     fizzle(f, index, source, target, aim.index, 'no-value');
     return line;
@@ -341,17 +347,33 @@ function fireGrow(line: readonly Slot[], index: number, source: CardInstance, ta
   return line.map((c, i) => (i === aim.index ? grown : c));
 }
 
-/** R-13: a re-fire effect fires its target again, counting in the current slot, at most once per card per round. */
-function fireRefire(line: readonly Slot[], index: number, source: CardInstance, target: TargetSide, f: Firing): Fired {
+/**
+ * R-13.5: the card a copy of the card at `index` acts as. A copy card stands for what it copies, so
+ * the chain is followed until a card that is not a copy; null when it reaches an empty slot or the
+ * end of the line (R-13.6). Each step moves one slot the same way, so the chain ends.
+ */
+function copiedCard(line: readonly Slot[], index: number): CardInstance | null {
+  for (let i = index, steps = 0; steps <= line.length; steps++) {
+    const card = line[i] ?? null;
+    if (card === null) return null;
+    const effect = cardDef(card.cardId).effect;
+    if (effect.kind !== 'copy') return card;
+    i -= 1; // every copy card targets 'previous' (Effect in types.ts)
+  }
+  return null;
+}
+
+/** R-13: a copy card acts, in its own slot, as the card it targets (and that card's copy, R-13.5). */
+function fireCopy(line: readonly Slot[], index: number, source: CardInstance, target: TargetSide, f: Firing): Fired {
   const aim = targetOf(line, index, source, target, f);
   if (aim === null) return { line, contribution: NOTHING };
-  if (f.refired.has(aim.card.uid)) {
-    fizzle(f, index, source, target, aim.index, 'already-refired');
+  const acting = copiedCard(line, aim.index);
+  if (acting === null) {
+    fizzle(f, index, source, target, aim.index, 'nothing-to-copy');
     return { line, contribution: NOTHING };
   }
-  f.refired.add(aim.card.uid);
   f.events.push({
-    type: 'refire',
+    type: 'copy',
     round: f.round,
     slot: f.slot,
     side: f.side,
@@ -361,10 +383,11 @@ function fireRefire(line: readonly Slot[], index: number, source: CardInstance, 
     targetSlot: aim.index + 1,
     targetUid: aim.card.uid,
     targetCardId: aim.card.cardId,
+    asCardId: acting.cardId,
   });
-  // The target is always at a lower or higher index than the source, never the source itself,
-  // so a chain of re-fires ends: each one marks a new uid and there are only so many on the line.
-  return fireAt(line, aim.index, f);
+  // R-13.3: the copy has the copied card's current value, growth included. R-13.4: its own targets
+  // are counted from this card's slot.
+  return fireAs(line, index, source, acting, f);
 }
 
 function endReason(playerDead: boolean, enemyDead: boolean): EndReason | null {
@@ -380,8 +403,6 @@ function runRound(state: BattleState, events: GameEvent[]): BattleState {
   events.push({ type: 'round-start', round });
   let player: PlayerState = state.player;
   let enemy: SideState = state.enemy;
-  // R-13: a card can be re-fired at most once per round, so the record lasts the round, not the slot.
-  const refired: Record<Owner, Set<string>> = { player: new Set(), enemy: new Set() };
 
   // R-07: the cursor walks slots 1..N; both sides' cards in a slot fire together.
   for (let i = 0; i < RULES.lineLength; i++) {
@@ -394,7 +415,7 @@ function runRound(state: BattleState, events: GameEvent[]): BattleState {
       if (card === null) continue;
       events.push({ type: 'trigger', round, slot, side, uid: card.uid, cardId: card.cardId });
       // R-12, R-14: growth lands on its target now, so a later slot fires with the new value this round.
-      const fired = fireAt(line, i, { round, slot, side, events, refired: refired[side] });
+      const fired = fireAt(line, i, { round, slot, side, events });
       totals[side].attack += fired.contribution.attack;
       totals[side].block += fired.contribution.block;
       if (fired.line !== line) {

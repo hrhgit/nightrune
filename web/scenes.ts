@@ -5,7 +5,7 @@
 import type { GameEvent, Level, Owner } from '../engine/index.ts';
 
 /** Events the board animates when a slot fires. */
-export type ImpactEvent = Extract<GameEvent, { type: 'damage' } | { type: 'block' } | { type: 'grow' } | { type: 'refire' } | { type: 'fizzle' }>;
+export type ImpactEvent = Extract<GameEvent, { type: 'damage' } | { type: 'block' } | { type: 'grow' } | { type: 'copy' } | { type: 'fizzle' }>;
 
 /** A card id at level 1, or [card id, level]. */
 /** A card id, or [id, level], or [id, level, growth] (R-14). */
@@ -108,9 +108,9 @@ export const SCENES: readonly SceneSpec[] = [
     impacts: [{ event: { type: 'fizzle', round: 1, slot: 4, side: 'player', uid: 'p4', cardId: 'whetstone', sourceSlot: 4, target: 'next', targetSlot: null, reason: 'no-slot' }, age: 0.5 }],
   },
   {
-    id: 'echo-refire',
-    title: 'Echo fires the previous card again',
-    look: 'Slot 2 firing: a green arc runs back from the Echo to the Slash in slot 1, "again" rises over the Slash, and both stones glow. Echo has no value medallion.',
+    id: 'echo-copy',
+    title: 'Echo copies the previous card',
+    look: 'Slot 2 firing: a green arc runs back from the Echo to the Slash in slot 1, "copy" rises over the Slash, and both stones glow. Echo has no value medallion.',
     seed: 7,
     enemyLine: DUMMY,
     playerLine: ['slash', 'echo', null, null],
@@ -122,30 +122,31 @@ export const SCENES: readonly SceneSpec[] = [
     ],
     impacts: [
       {
-        event: { type: 'refire', round: 1, slot: 2, side: 'player', uid: 'p2', cardId: 'echo', sourceSlot: 2, targetSlot: 1, targetUid: 'p1', targetCardId: 'slash' },
+        event: { type: 'copy', round: 1, slot: 2, side: 'player', uid: 'p2', cardId: 'echo', sourceSlot: 2, targetSlot: 1, targetUid: 'p1', targetCardId: 'slash', asCardId: 'slash' },
         age: 0.5,
       },
     ],
   },
   {
     id: 'echo-after-whetstone',
-    title: 'Echo re-fires Whetstone, which fizzles on the Echo',
-    look: 'Slot 2 firing: a green arc from the Echo back to the Whetstone, then "fizzles" under the Whetstone: its next card is the Echo, which has no value.',
+    title: 'Echo copies Whetstone and grows the card after the Echo',
+    look: 'Slot 2 firing: a green arc from the Echo back to the Whetstone with "copy", then an amber arc from the Echo forward to the Slash in slot 3 with "+1"; the Slash shows its new value.',
     seed: 7,
     enemyLine: DUMMY,
-    playerLine: ['whetstone', 'echo', null, null],
+    playerLine: ['whetstone', 'echo', ['slash', 1, 1], null],
     cursor: 2,
     firing: [
       { side: 'player', slot: 2, glow: 1 },
       { side: 'player', slot: 1, glow: 1 },
+      { side: 'enemy', slot: 2, glow: 1 },
     ],
     impacts: [
       {
-        event: { type: 'refire', round: 1, slot: 2, side: 'player', uid: 'p2', cardId: 'echo', sourceSlot: 2, targetSlot: 1, targetUid: 'p1', targetCardId: 'whetstone' },
+        event: { type: 'copy', round: 1, slot: 2, side: 'player', uid: 'p2', cardId: 'echo', sourceSlot: 2, targetSlot: 1, targetUid: 'p1', targetCardId: 'whetstone', asCardId: 'whetstone' },
         age: 0.5,
       },
       {
-        event: { type: 'fizzle', round: 1, slot: 2, side: 'player', uid: 'p1', cardId: 'whetstone', sourceSlot: 1, target: 'next', targetSlot: 2, reason: 'no-value' },
+        event: { type: 'grow', round: 1, slot: 2, side: 'player', uid: 'p2', cardId: 'echo', sourceSlot: 2, targetSlot: 3, targetUid: 'p3', targetCardId: 'slash', amount: 1, valueAfter: 5 },
         age: 0.5,
       },
     ],
