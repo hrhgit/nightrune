@@ -12,7 +12,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { areaOf, criteria, outside, type Ticket } from './ticket.ts';
-import { blocking, forHuman, judge, type Finding, type Judgement, type RunFacts } from './verdict.ts';
+import { afterFixRound, blocking, forHuman, judge, type Finding, type Judgement, type RunFacts } from './verdict.ts';
 
 interface Area {
   readonly executor: 'codex' | 'claude';
@@ -353,11 +353,13 @@ async function work(t: Ticket): Promise<void> {
     // Review loop: fix valid blocking findings until clean, stalled or out of rounds.
     let reviewRounds = 0;
     let previous = '';
+    let stopAfterReview = false;
     for (;;) {
       const seen = await waitForReview(prUrl, facts.headSha);
       facts.review = seen.review;
       facts.findings = seen.findings;
       if (seen.review?.commitSha !== facts.headSha || seen.review.status !== 'completed') break;
+      if (stopAfterReview) break;
       const open = blocking(seen.findings);
       const ids = open.map((f) => f.id).sort().join(',');
       if (open.length === 0) break;
@@ -370,15 +372,16 @@ async function work(t: Ticket): Promise<void> {
       reviewRounds += 1;
       facts.attempts = reviewRounds;
       report = runAgent(executor, findingsPrompt(t, area, open, seen.raw), dir);
-      facts.question = readAndRemove(dir, QUESTION);
+      const asked = readAndRemove(dir, QUESTION);
       const disagreement = readAndRemove(dir, DISAGREE);
-      if (disagreement !== null) facts.question = `the agent disagrees with a finding:\n${disagreement}`;
-      if (facts.question !== null) break;
-      if (headOf(dir) !== facts.headSha) {
-        facts.stoppedBy = 'the agent made its own commits; only the factory commits';
-        break;
-      }
-      if (uncommitted(dir).length === 0) {
+      const said = [asked, disagreement === null ? null : `the agent disagrees with a finding:\n${disagreement}`].filter((x) => x !== null);
+      facts.question = said.length > 0 ? said.join('\n\n') : null;
+      const ownCommit = headOf(dir) !== facts.headSha;
+      if (ownCommit) facts.stoppedBy = 'the agent made its own commits; only the factory commits';
+      const next = afterFixRound({ asked: asked !== null, disputed: disagreement !== null, ownCommit, changed: uncommitted(dir).length > 0 });
+      note('after fix round', { round: reviewRounds, next });
+      if (next === 'stop') break;
+      if (next === 'stalled') {
         facts.stalled = true; // findings open and the agent changed nothing
         break;
       }
@@ -388,6 +391,7 @@ async function work(t: Ticket): Promise<void> {
       note('checks', { round: reviewRounds, passed: lastChecks.ok, outside: facts.outsideArea });
       if (!lastChecks.ok || facts.outsideArea.length > 0) break;
       facts.headSha = commit(`Agent: address Qodo findings on #${t.number} (round ${reviewRounds})`);
+      stopAfterReview = next === 'commit-then-stop'; // review the kept fixes, then hand the dispute to a person
     }
     record.reviewRounds = reviewRounds;
     return finish(t, facts, record, prUrl, report, lastChecks.ok ? '' : lastChecks.output);
