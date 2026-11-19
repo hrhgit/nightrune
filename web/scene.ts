@@ -9,14 +9,16 @@ import '@fontsource/alegreya-sans/400.css';
 import '@fontsource/alegreya-sans/500.css';
 import '@fontsource/alegreya-sans/700.css';
 import './style.css';
-import { cardDef, enemyDef, type CardInstance, type Level, type Owner, type Slot } from '../engine/index.ts';
+import { cardDef, createBattle, enemyDef, type CardInstance, type Level, type Owner, type Slot } from '../engine/index.ts';
 import { BOARD, drawBoard, type Floater } from './board.ts';
 import { floaterFor, handCanvas, look } from './look.ts';
 import type { SceneReport, TextMark, TextOverlap } from './scene-report.ts';
 import { SCENES, type CardRef, type SceneSpec } from './scenes.ts';
 
 const ENEMY_ID = 'training-dummy';
-const DEFAULT_HP: Record<Owner, number> = { player: 30, enemy: enemyDef(ENEMY_ID).hp };
+// Starting HP comes from the engine, not a copy of the rule table.
+const opening = createBattle({ enemyId: ENEMY_ID, seed: 1 });
+const DEFAULT_HP: Record<Owner, number> = { player: opening.player.hp, enemy: opening.enemy.hp };
 
 declare global {
   interface Window {
@@ -125,10 +127,10 @@ function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motio
 
   const hand = document.createElement('div');
   hand.className = 'hand';
-  const handCards = (spec.hand ?? []).map((ref, i) => instance(ref, `hand-${i + 1}`));
-
+  // The article goes into the page first, so a scene that fails below still has an element to screenshot.
   article.append(title, note, wrap, hand);
   host.append(article);
+  const handCards = (spec.hand ?? []).map((ref, i) => instance(ref, `hand-${i + 1}`));
 
   // Size the backing store after the canvas is in the page, as the game does.
   const dpr = window.devicePixelRatio || 1;
@@ -183,8 +185,12 @@ async function main(): Promise<void> {
   const errors: string[] = [];
   if (chosen.length === 0) errors.push(`No scene with id "${id ?? ''}". Known: ${SCENES.map((s) => s.id).join(', ')}`);
   // Fonts must be loaded before drawing, or canvas text falls back and the picture changes.
-  await document.fonts.load('700 30px "Alegreya"');
-  await document.fonts.load('700 22px "Alegreya Sans"');
+  // Load every face the board uses, or canvas text falls back and the picture and measurements change.
+  await Promise.all(
+    ['600 16px "Alegreya"', '700 16px "Alegreya"', '400 16px "Alegreya Sans"', '500 16px "Alegreya Sans"', '700 16px "Alegreya Sans"'].map((f) =>
+      document.fonts.load(f),
+    ),
+  );
   await document.fonts.ready;
   const motion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const marks: RawMark[] = [];
@@ -205,4 +211,7 @@ async function main(): Promise<void> {
   window.__sceneReport = { ready: true, scenes: chosen.map((s) => s.id), marks: onScreen(marks), overlaps: overlapsOf(marks), errors };
 }
 
-void main();
+main().catch((err: unknown) => {
+  // Always publish a report, so the screenshot script records the failure instead of timing out.
+  window.__sceneReport = { ready: true, scenes: [], marks: [], overlaps: [], errors: [`page: ${err instanceof Error ? err.message : String(err)}`] };
+});

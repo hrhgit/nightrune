@@ -70,10 +70,18 @@ try {
     await mkdir(join(outDir, name), { recursive: true });
     for (const id of ids) {
       errors = [];
-      await page.goto(new URL(`scene.html?id=${encodeURIComponent(id)}`, base).href);
-      const report = await readReport(page);
       const image = join(outDir, name, `${id}.png`);
-      await page.locator(`#scene-${id}`).screenshot({ path: image, animations: 'disabled' });
+      let report: SceneReport;
+      try {
+        await page.goto(new URL(`scene.html?id=${encodeURIComponent(id)}`, base).href);
+        report = await readReport(page);
+        const el = page.locator(`#scene-${id}`);
+        if ((await el.count()) === 1) await el.screenshot({ path: image, animations: 'disabled' });
+        else errors.push(`no #scene-${id} element to screenshot`);
+      } catch (err) {
+        // Record and move on, so one broken scene never hides the others or the report.
+        report = { ready: false, scenes: [], marks: [], overlaps: [], errors: [`run: ${err instanceof Error ? err.message : String(err)}`] };
+      }
       const sizes = (canvas: 'board' | 'hand') => {
         const px = report.marks.filter((m) => m.canvas === canvas).map((m) => m.screenPx);
         return px.length === 0 ? null : Math.min(...px);
