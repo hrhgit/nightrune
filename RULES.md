@@ -73,6 +73,29 @@ Status: **done** = implemented and tested; **partial** = implemented in part (se
 |---|---|---|
 | R-17 | The enemy line is set when the battle starts, is fully visible, and fires every round. Enemy cards use the same effect system as player cards. Enemies do not use energy. | done for the first enemy; more enemies [T12] |
 
+## Checks
+
+Invariants (I), numeric checks (N) and art checks (A). These are not game rules; they are what the tests and, later, the simulation check after every event. Tests cite them by id the same way as rules.
+
+| Id | Check | Status |
+|---|---|---|
+| I-1 | Card conservation: draw pile, hand, discard pile and line (including stacked cards) add up to the number of cards the battle started with. | done: after every action of 200 seeded greedy games |
+| I-2 | At most one card on top of each slot; level between 1 and 3; the number of stacked cards equals level − 1. | planned [T07] |
+| I-3 | Block is never negative; nothing fires after either side reaches 0 HP. | partial: HP never below 0 in 200 seeded games; R-10 tests check no slot fires after the battle ends |
+| I-4 | Energy spent in a round is at most that round's energy; energy is never negative; the hand never exceeds its size. | done: after every action of 200 seeded greedy games |
+| I-5 | Triggers per round stay within the limit; no battle lasts more than 20 rounds; every battle ends. | partial: every one of 200 seeded greedy games ends within 20 rounds; no trigger limit yet [T05] |
+| I-6 | The same seed with the same actions gives the same final state. | partial: replay test on 5 seeds; no replay command [T06] |
+| I-7 | Save then load leaves the state unchanged. | planned [T30] |
+| I-8 | Pairwise coverage: every pair of mechanics in the mechanic register has at least one named test. | planned [T17] |
+| N-1 | The card table is well-formed; a card's values strictly increase with level. | planned [T14] |
+| N-2 | Values are positive integers within the table's limits. | planned [T14] |
+| N-3 | Win-rate baseline for the greedy bot on a fixed batch of seeds; a ticket that moves it beyond the agreed margin must say so and update the baseline. | planned [T18] |
+| N-4 | One card's effect: the win-rate difference with and without it stays within the agreed margin. | planned |
+| A-1 | Every card, player or enemy, has a rune glyph. | done for the card table; enemy figures are covered by a type check |
+| A-2 | All cards are drawn at one size; direction-to-colour mapping is fixed and colours come only from the palette. | planned [T19] |
+| A-3 | Text fits on the card face; text contrast is at least 4.5:1 against its background. | measured, not checked: `npm run scenes` reports text size, clipping and overlap but nothing fails on them [T19] |
+| A-4 | Screenshot baselines for fixed-seed scenes; any difference needs a person to confirm. | planned [T20] |
+
 ## Not in v0
 
 Area shields (block that covers every slot for a whole round), wrap-around order effects, moving cards, one-shot cards, recipe merges, permanent upgrades, 5-slot lines, disruptive enemies, rotating enemy lines, heat, relics, map, shop.
