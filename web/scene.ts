@@ -11,7 +11,7 @@ import '@fontsource/alegreya-sans/700.css';
 import './style.css';
 import { cardDef, createBattle, enemyDef, type CardInstance, type EnemyId, type Level, type Owner, type Slot } from '../engine/index.ts';
 import { BOARD, drawBoard } from './board.ts';
-import { handCanvas, look } from './look.ts';
+import { handCanvas, look, placeHand } from './look.ts';
 import type { SceneReport, TextMark, TextOverlap } from './scene-report.ts';
 import { SCENES, type CardRef, type SceneSpec } from './scenes.ts';
 
@@ -128,8 +128,9 @@ function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motio
   const hand = document.createElement('div');
   hand.className = 'hand';
   // The article goes into the page first, so a scene that fails below still has an element to screenshot.
-  article.append(title, note, wrap, hand);
+  article.append(title, note, wrap);
   host.append(article);
+  const handTray = placeHand(hand, wrap, { after: wrap });
   const handCards = (spec.hand ?? []).map((ref, i) => instance(ref, `hand-${i + 1}`));
 
   // Size the backing store after the canvas is in the page, as the game does.
@@ -165,6 +166,7 @@ function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motio
     targets: new Set(spec.targets ?? []),
     hoverSlot: spec.hover ?? null,
     impacts: spec.impacts ?? [],
+    handTray,
   });
 
   handCards.forEach((card, i) => {

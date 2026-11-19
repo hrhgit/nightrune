@@ -23,7 +23,7 @@ import {
 import { parseSeed, SEED_HELP } from '../present/seed.ts';
 import { battleEndText, cardEffectText, cardName, eventText, rejectText } from '../present/text.ts';
 import { BOARD, drawBoard, slotRect, type Impact } from './board.ts';
-import { handCanvas, look } from './look.ts';
+import { handCanvas, look, placeHand, trayQuery } from './look.ts';
 
 const ENEMY_ID: EnemyId = 'training-dummy';
 const BEAT_MS = { slot: 700, emptySlot: 220, pre: 260 } as const;
@@ -504,6 +504,7 @@ function draw(now: number): void {
     targets,
     hoverSlot: app.hoverSlot,
     impacts,
+    handTray,
   });
 }
 
@@ -526,6 +527,13 @@ seedForm.addEventListener('submit', (ev) => {
   startGame(seed);
 });
 window.addEventListener('resize', resizeCanvas);
+
+// The hand sits in the board's tray on wide screens and below the board on narrow ones.
+const boardWrap = slotsEl.parentElement as HTMLElement;
+let handTray = placeHand(handEl, boardWrap, { before: runBtn });
+trayQuery.addEventListener('change', () => {
+  handTray = placeHand(handEl, boardWrap, { before: runBtn });
+});
 
 const urlSeed = parseSeed(new URL(window.location.href).searchParams.get('seed') ?? '');
 resizeCanvas();

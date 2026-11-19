@@ -314,7 +314,7 @@ export function drawTrainingDummy(ctx: CanvasRenderingContext2D, pose: FigurePos
   const u = pose.size / 170;
   ellipseShadow(ctx, pose.x, pose.y, 52 * u);
   onLayer(ctx, { x: pose.x - 95 * u, y: pose.y - 212 * u, w: 190 * u, h: 222 * u }, pose.reaction.hit, (l) => dummyBody(l, pose));
-  blockWard(ctx, pose.x, pose.y - 110 * u, 66 * u, pose.reaction.block, 1);
+  blockWard(ctx, pose.x, pose.y - 110 * u, 66 * u, pose.reaction.block, -1);
 }
 
 function dummyBody(ctx: CanvasRenderingContext2D, pose: FigurePose): void {

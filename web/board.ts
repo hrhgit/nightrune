@@ -13,19 +13,35 @@ import { RUNES } from './runes.ts';
 
 export const BOARD = { width: 960, height: 540 } as const;
 export const STONE = { w: 128, h: 116 } as const;
-const COLUMN_X = [350, 505, 660, 815] as const;
-const LINE_Y: Record<Owner, number> = { enemy: 148, player: 394 };
-const MID_Y = (LINE_Y.enemy + LINE_Y.player) / 2;
+/*
+ * Layout: the player stands on the left, the enemy on the right. Above each head is that side's
+ * line: four stones, slot 1 to 4 from left to right, the actions it takes this round. Slot i of
+ * one line meets slot i of the other. Between the line and the head is the HP plaque. The
+ * campfire sits between the two figures, and the hand tray along the bottom middle.
+ */
+/** A stone on a line (smaller than a hand card). */
+const SLOT_STONE = { w: 104, h: 94 } as const;
+const SLOT_GAP = 4;
+/** Centre x of each side's line and its y. */
+const LINE_CX: Record<Owner, number> = { player: 226, enemy: 734 };
+const LINE_Y = 82;
+const slotX = (side: Owner, slot: number): number => LINE_CX[side] + (slot - 2.5) * (SLOT_STONE.w + SLOT_GAP);
 /** Where the treeline meets the ground. */
-const HORIZON_Y = 96;
-/** Left column: the two figures, their HP plaques and the campfire between them. */
+const HORIZON_Y = 300;
 const FIGURE: Record<Owner, { readonly x: number; readonly y: number; readonly size: number }> = {
-  enemy: { x: 140, y: 200, size: 150 },
-  player: { x: 112, y: 466, size: 148 },
+  player: { x: 226, y: 404, size: 182 },
+  enemy: { x: 734, y: 404, size: 176 },
 };
-const HP_AT: Record<Owner, { readonly x: number; readonly y: number }> = { enemy: { x: 22, y: 230 }, player: { x: 22, y: 482 } };
-const HP_PLAQUE = { w: 214, h: 50 } as const;
-const FIRE = { x: 244, y: 338, scale: 0.6 } as const;
+const HP_PLAQUE = { w: 214, h: 46 } as const;
+const HP_Y = LINE_Y + SLOT_STONE.h / 2 + 12;
+const FIRE = { x: 480, y: 384, scale: 0.64 } as const;
+/** The hand tray, bottom middle. The page lays the hand's buttons over it (see handTrayRect). */
+const HAND_TRAY = { x: 256, y: 420, w: 448, h: 116 } as const;
+
+/** The hand tray in board units, for placing the HTML hand over it. */
+export function handTrayRect(): { x: number; y: number; w: number; h: number } {
+  return { ...HAND_TRAY };
+}
 
 /** Phases of one impact, as fractions of its life (0 = event fired, 1 = gone). */
 const PHASE = { bolt: 0.28, through: 0.5 } as const;
@@ -63,12 +79,14 @@ export interface Scene {
   readonly targets: ReadonlySet<number>;
   readonly hoverSlot: number | null;
   readonly impacts: readonly Impact[];
+  /** Draw the hand tray; false when the page shows the hand below the board (narrow screens). */
+  readonly handTray: boolean;
 }
 
 /** Rectangle of a slot in board coordinates, used to place the HTML slot buttons. */
 export function slotRect(side: Owner, slot: number): { x: number; y: number; w: number; h: number } {
-  const cx = COLUMN_X[slot - 1] ?? 0;
-  return { x: cx - STONE.w / 2, y: LINE_Y[side] - STONE.h / 2, w: STONE.w, h: STONE.h };
+  const cx = slotX(side, slot);
+  return { x: cx - SLOT_STONE.w / 2, y: LINE_Y - SLOT_STONE.h / 2, w: SLOT_STONE.w, h: SLOT_STONE.h };
 }
 
 const other = (side: Owner): Owner => (side === 'player' ? 'enemy' : 'player');
@@ -138,8 +156,8 @@ function drawSky(ctx: CanvasRenderingContext2D, scene: Scene): void {
   ctx.fillRect(0, 0, BOARD.width, HORIZON_Y + 20);
 
   // Moon with a soft halo, top right, behind the treeline.
-  const mx = 892;
-  const my = 38;
+  const mx = 480;
+  const my = 150;
   const halo = ctx.createRadialGradient(mx, my, 8, mx, my, 90);
   halo.addColorStop(0, rgba(PALETTE.moon, 0.22));
   halo.addColorStop(1, rgba(PALETTE.moon, 0));
@@ -282,7 +300,7 @@ function drawFirelight(ctx: CanvasRenderingContext2D, scene: Scene): void {
   glow.addColorStop(0.5, 'rgba(255, 130, 60, 0.10)');
   glow.addColorStop(1, 'rgba(255, 150, 70, 0)');
   ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, 560, BOARD.height);
+  ctx.fillRect(0, 0, BOARD.width, BOARD.height);
 }
 
 function drawCampfire(ctx: CanvasRenderingContext2D, scene: Scene): void {
@@ -635,8 +653,9 @@ export function drawStone(
 // ---------------------------------------------------------------------------
 
 function drawHp(ctx: CanvasRenderingContext2D, side: Owner, label: string, hp: { now: number; max: number }, lostFrom: number | null, lostFade: number): void {
-  const { x, y } = HP_AT[side];
   const { w, h } = HP_PLAQUE;
+  const x = LINE_CX[side] - w / 2;
+  const y = HP_Y;
   ctx.fillStyle = 'rgba(10,12,20,0.62)';
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, 8);
@@ -650,10 +669,10 @@ function drawHp(ctx: CanvasRenderingContext2D, side: Owner, label: string, hp: {
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = PALETTE.text;
   ctx.font = '600 18px "Alegreya", serif';
-  ctx.fillText(label, x + 12, y + 20);
+  ctx.fillText(label, x + 12, y + 19);
 
   const barX = x + 12;
-  const barY = y + 29;
+  const barY = y + 27;
   const barW = 122;
   const barH = 12;
   ctx.fillStyle = '#0E1118';
@@ -690,38 +709,65 @@ function drawHp(ctx: CanvasRenderingContext2D, side: Owner, label: string, hp: {
 // ---------------------------------------------------------------------------
 
 function drawCursorTrack(ctx: CanvasRenderingContext2D, scene: Scene): void {
-  if (scene.cursor !== null) {
-    const r = slotRect('enemy', scene.cursor);
-    const top = r.y - 16;
-    const bottom = LINE_Y.player + STONE.h / 2 + 16;
-    const g = ctx.createLinearGradient(0, top, 0, bottom);
-    g.addColorStop(0, 'rgba(255, 201, 74, 0.04)');
-    g.addColorStop(0.5, 'rgba(255, 201, 74, 0.18)');
-    g.addColorStop(1, 'rgba(255, 201, 74, 0.04)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.roundRect(r.x - 12, top, r.w + 24, bottom - top, 16);
-    ctx.fill();
-  }
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  for (let slot = 1; slot <= COLUMN_X.length; slot++) {
-    const active = scene.cursor === slot;
-    const cx = COLUMN_X[slot - 1] ?? 0;
-    // A small carved disc for the slot number.
-    ctx.fillStyle = active ? 'rgba(255,201,74,0.22)' : 'rgba(10,12,20,0.4)';
+  for (const side of ['player', 'enemy'] as const) {
+    for (let slot = 1; slot <= 4; slot++) {
+      const active = scene.cursor === slot;
+      const r = slotRect(side, slot);
+      const cx = r.x + r.w / 2;
+      if (active) {
+        // A soft band behind the slot that acts now, on both lines.
+        const g = ctx.createRadialGradient(cx, LINE_Y, 10, cx, LINE_Y, r.w * 0.8);
+        g.addColorStop(0, 'rgba(255, 201, 74, 0.28)');
+        g.addColorStop(1, 'rgba(255, 201, 74, 0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(r.x - 20, r.y - 24, r.w + 40, r.h + 48);
+      }
+      // Slot number on a small disc above the stone.
+      const ny = r.y - 13;
+      ctx.fillStyle = active ? 'rgba(255,201,74,0.25)' : 'rgba(10,12,20,0.55)';
+      ctx.beginPath();
+      ctx.arc(cx, ny, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = active ? PALETTE.ember : 'rgba(155,163,182,0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      // System sans for slot numbers: Alegreya's old-style 2 reads like a z at this size.
+      ctx.font = '700 14px system-ui, sans-serif';
+      ctx.fillStyle = active ? PALETTE.ember : PALETTE.runeDim;
+      ctx.fillText(String(slot), cx, ny + 1);
+    }
+  }
+}
+
+function drawHandTray(ctx: CanvasRenderingContext2D): void {
+  const { x, y, w, h } = HAND_TRAY;
+  // A low slab of dark wood with a lit front edge.
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, 'rgba(40,30,22,0.9)');
+  g.addColorStop(1, 'rgba(20,15,12,0.95)');
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.6)';
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h + 20, 14);
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(255,170,90,0.35)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + 12, y + 1);
+  ctx.lineTo(x + w - 12, y + 1);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth = 1;
+  for (const fy of [0.35, 0.7]) {
     ctx.beginPath();
-    ctx.arc(cx, MID_Y, 14, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = active ? PALETTE.ember : 'rgba(155,163,182,0.35)';
-    ctx.lineWidth = 1.5;
+    ctx.moveTo(x + 16, y + h * fy);
+    ctx.lineTo(x + w - 16, y + h * fy + 2);
     ctx.stroke();
-    // System sans for slot numbers: Alegreya's old-style 2 reads like a z at this size.
-    ctx.font = '700 16px system-ui, sans-serif';
-    ctx.fillStyle = active ? PALETTE.ember : PALETTE.runeDim;
-    ctx.globalAlpha = active ? 1 : 0.7;
-    ctx.fillText(String(slot), cx, MID_Y + 1);
-    ctx.globalAlpha = 1;
   }
 }
 
@@ -750,15 +796,24 @@ function strikesOf(impacts: readonly Impact[]): Strike[] {
   return [...bySlot.values()];
 }
 
+interface Pt {
+  readonly x: number;
+  readonly y: number;
+}
+
 /** Where a strike starts, meets the defending stone, and ends on the defending figure. */
-function strikePath(s: Strike): { from: { x: number; y: number }; ward: { x: number; y: number }; chest: { x: number; y: number } } {
-  const cx = COLUMN_X[s.slot - 1] ?? 0;
-  const dir = s.defender === 'player' ? 1 : -1;
+function strikePath(s: Strike): { from: Pt; arc: Pt; ward: Pt; bend: Pt; chest: Pt } {
+  const fromX = slotX(other(s.defender), s.slot);
+  const toX = slotX(s.defender, s.slot);
   const fig = FIGURE[s.defender];
+  const lowY = LINE_Y + SLOT_STONE.h / 2;
   return {
-    from: { x: cx, y: LINE_Y[other(s.defender)] + dir * (STONE.h / 2 - 4) },
-    ward: { x: cx, y: LINE_Y[s.defender] - dir * (STONE.h / 2 + 6) },
-    chest: { x: fig.x + 30, y: fig.y - fig.size * 0.55 },
+    from: { x: fromX, y: lowY - 6 },
+    // The bolt dips under the HP plaques, across the middle of the camp.
+    arc: { x: (fromX + toX) / 2, y: lowY + 150 },
+    ward: { x: toX, y: lowY + 4 },
+    bend: { x: (toX + fig.x) / 2, y: lowY + 50 },
+    chest: { x: fig.x, y: fig.y - fig.size * 0.55 },
   };
 }
 
@@ -794,7 +849,7 @@ function comet(ctx: CanvasRenderingContext2D, head: { x: number; y: number }, ta
   ctx.restore();
 }
 
-/** A curved rune shield across the face of the defending stone. */
+/** A curved rune shield under the defending stone, facing the incoming bolt. */
 function drawStoneWard(ctx: CanvasRenderingContext2D, at: { x: number; y: number }, facingUp: boolean, strength: number): void {
   if (strength <= 0) return;
   ctx.save();
@@ -803,7 +858,7 @@ function drawStoneWard(ctx: CanvasRenderingContext2D, at: { x: number; y: number
   ctx.shadowColor = DIRECTION_GLOW.defense;
   ctx.shadowBlur = 20;
   ctx.lineCap = 'round';
-  const r = STONE.w * 0.62;
+  const r = SLOT_STONE.w * 0.62;
   const cy = at.y + (facingUp ? r * 0.72 : -r * 0.72);
   const mid = facingUp ? -Math.PI / 2 : Math.PI / 2;
   ctx.lineWidth = 5;
@@ -852,36 +907,28 @@ function drawStrikes(ctx: CanvasRenderingContext2D, strikes: readonly Strike[], 
     const p = strikePath(s);
     const age = motion ? s.age : PHASE.through;
     const fade = motion ? 1 - window01(s.age, 0.75, 1) : 1;
-    const bend = { x: (p.ward.x + p.chest.x) / 2 + 30, y: s.defender === 'player' ? p.ward.y + 90 : p.ward.y - 90 };
-    const toWard = s.blocked > 0 ? p.ward : { x: p.ward.x, y: LINE_Y[s.defender] };
 
     if (!motion) {
       // A still trail along the whole path.
       ctx.save();
-      ctx.globalAlpha = 0.55;
+      ctx.globalAlpha = 0.6;
       ctx.strokeStyle = attack;
       ctx.setLineDash([6, 6]);
       ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.moveTo(p.from.x, p.from.y);
-      ctx.lineTo(toWard.x, toWard.y);
-      if (s.dealt > 0) ctx.quadraticCurveTo(bend.x, bend.y, p.chest.x, p.chest.y);
+      ctx.quadraticCurveTo(p.arc.x, p.arc.y, p.ward.x, p.ward.y);
+      if (s.dealt > 0) ctx.quadraticCurveTo(p.bend.x, p.bend.y, p.chest.x, p.chest.y);
       ctx.stroke();
       ctx.restore();
     } else {
       const t1 = easeOut(window01(age, 0, PHASE.bolt));
-      if (t1 > 0 && t1 < 1) {
-        const head = { x: p.from.x, y: p.from.y + (toWard.y - p.from.y) * t1 };
-        const tail = { x: p.from.x, y: p.from.y + (toWard.y - p.from.y) * Math.max(0, t1 - 0.35) };
-        comet(ctx, head, tail, attack, 9, 1);
-      }
-      const t2 = window01(age, PHASE.bolt, PHASE.through);
+      if (t1 > 0 && t1 < 1) comet(ctx, quadPoint(p.from, p.arc, p.ward, t1), quadPoint(p.from, p.arc, p.ward, Math.max(0, t1 - 0.25)), attack, 9, 1);
+      const t2 = easeOut(window01(age, PHASE.bolt, PHASE.through));
       if (s.dealt > 0 && t2 > 0 && t2 < 1) {
         // Thinner when part of it was blocked.
         const share = s.dealt / (s.dealt + s.blocked);
-        const head = quadPoint(toWard, bend, p.chest, easeOut(t2));
-        const tail = quadPoint(toWard, bend, p.chest, Math.max(0, easeOut(t2) - 0.3));
-        comet(ctx, head, tail, attack, 5 + 5 * share, 1);
+        comet(ctx, quadPoint(p.ward, p.bend, p.chest, t2), quadPoint(p.ward, p.bend, p.chest, Math.max(0, t2 - 0.35)), attack, 5 + 5 * share, 1);
       }
       // Sparks where the bolt hits the ward.
       const t3 = window01(age, PHASE.bolt, PHASE.bolt + 0.25);
@@ -903,16 +950,18 @@ function drawStrikes(ctx: CanvasRenderingContext2D, strikes: readonly Strike[], 
 
     if (s.blocked > 0) {
       const shown = motion ? window01(age, PHASE.bolt - 0.04, PHASE.bolt) : 1;
-      drawStoneWard(ctx, p.ward, s.defender === 'enemy' ? false : true, shown * fade * (motion ? 1 - 0.4 * window01(age, PHASE.bolt, 1) : 0.85));
-      const dir = s.defender === 'player' ? -1 : 1;
-      const rise = motion ? window01(age, PHASE.bolt, 1) * 10 : 0;
-      strikeLabel(ctx, `Blocked ${s.blocked}`, p.ward.x, p.ward.y + dir * (26 + rise), DIRECTION_GLOW.defense, 21, shown * fade, motion ? 1 - window01(age, PHASE.bolt, PHASE.bolt + 0.12) : 0);
+      drawStoneWard(ctx, p.ward, false, shown * fade * (motion ? 1 - 0.4 * window01(age, PHASE.bolt, 1) : 0.85));
+      // Over the stone itself: the label belongs to the stone that blocked.
+      const rise = motion ? window01(age, PHASE.bolt, 1) * 8 : 0;
+      strikeLabel(ctx, `Blocked ${s.blocked}`, p.ward.x, LINE_Y + 10 - rise, DIRECTION_GLOW.defense, 20, shown * fade, motion ? 1 - window01(age, PHASE.bolt, PHASE.bolt + 0.12) : 0);
     }
     if (s.dealt > 0) {
       const shown = motion ? window01(age, PHASE.through - 0.04, PHASE.through) : 1;
       const fig = FIGURE[s.defender];
       const rise = motion ? window01(age, PHASE.through, 1) * 18 : 0;
-      strikeLabel(ctx, `−${s.dealt}`, fig.x + 104, fig.y - fig.size * 0.7 - rise, PALETTE.flame, 34, shown * fade, motion ? 1 - window01(age, PHASE.through, PHASE.through + 0.15) : 0);
+      // Beside the head, on the side away from the middle so it never meets the other figure's label.
+      const out = s.defender === 'player' ? -1 : 1;
+      strikeLabel(ctx, `−${s.dealt}`, fig.x + out * 112, fig.y - fig.size * 0.62 - rise, PALETTE.flame, 34, shown * fade, motion ? 1 - window01(age, PHASE.through, PHASE.through + 0.15) : 0);
     }
   }
 }
@@ -951,6 +1000,7 @@ export function drawBoard(ctx: CanvasRenderingContext2D, scene: Scene): void {
   drawTreeline(ctx, scene);
   drawGround(ctx, scene);
   drawFirelight(ctx, scene);
+  if (scene.handTray) drawHandTray(ctx);
   drawCursorTrack(ctx, scene);
   const pulse = scene.motion ? 0.5 + 0.5 * Math.sin(scene.time * 0.006) : 1;
   for (const side of ['enemy', 'player'] as const) {

@@ -2,7 +2,7 @@
 // so a preview shows exactly the words and numbers the game shows.
 import { cardDef, type CardInstance } from '../engine/index.ts';
 import { cardValue } from '../present/text.ts';
-import { drawStone, STONE, type StoneLook } from './board.ts';
+import { BOARD, drawStone, handTrayRect, STONE, type StoneLook } from './board.ts';
 
 export function look(card: CardInstance): StoneLook {
   const def = cardDef(card.cardId);
@@ -35,4 +35,35 @@ export function handCanvas(
     });
   }
   return c;
+}
+
+/**
+ * Wide screens show the hand in the tray drawn on the board; narrow ones show it below the board,
+ * where the cards can be big enough to read. Keep in step with the 720px breakpoint in style.css.
+ */
+export const trayQuery = window.matchMedia('(min-width: 721px)');
+
+/**
+ * Put the hand in the board's tray (wide screens) or just after `below` (narrow screens).
+ * Returns whether the board should draw the tray. Re-run when trayQuery changes.
+ */
+export function placeHand(hand: HTMLElement, wrap: HTMLElement, below: { before: HTMLElement } | { after: HTMLElement }): boolean {
+  if (trayQuery.matches) {
+    const t = handTrayRect();
+    hand.classList.add('in-tray');
+    hand.style.left = `${(t.x / BOARD.width) * 100}%`;
+    hand.style.top = `${(t.y / BOARD.height) * 100}%`;
+    hand.style.width = `${(t.w / BOARD.width) * 100}%`;
+    hand.style.height = `${(t.h / BOARD.height) * 100}%`;
+    if (hand.parentElement !== wrap) wrap.append(hand);
+    return true;
+  }
+  hand.classList.remove('in-tray');
+  hand.style.removeProperty('left');
+  hand.style.removeProperty('top');
+  hand.style.removeProperty('width');
+  hand.style.removeProperty('height');
+  if ('before' in below) below.before.before(hand);
+  else below.after.after(hand);
+  return false;
 }
