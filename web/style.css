@@ -1,0 +1,424 @@
+/* Runestone night camp. Tokens mirror web/palette.ts (design doc section 13). */
+:root {
+  --sky: #161c2b;
+  --deep: #10141f;
+  --socket: #2a3142;
+  --stone: #5a6072;
+  --rune: #9ba3b6;
+  --text: #f4f6ff;
+  --ember: #ffc94a;
+  --flame: #ff6a4a;
+  --serif: 'Alegreya', Georgia, serif;
+  --sans: 'Alegreya Sans', system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--deep);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(120% 80% at 20% 0%, var(--sky) 0%, var(--deep) 70%);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 1.0625rem;
+  line-height: 1.45;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 3px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Header ------------------------------------------------------------------ */
+
+.top {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 20px 24px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.seed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.seed label {
+  color: var(--rune);
+}
+
+.seed input {
+  width: 9.5rem;
+  padding: 7px 10px;
+  border: 1px solid var(--stone);
+  border-radius: 6px;
+  background: var(--deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.seed-error {
+  flex-basis: 100%;
+  margin: 0;
+  min-height: 0;
+  color: var(--flame);
+  font-size: 0.95rem;
+  text-align: right;
+}
+
+.seed-error:empty {
+  display: none;
+}
+
+button {
+  cursor: pointer;
+  padding: 7px 14px;
+  border: 1px solid var(--stone);
+  border-radius: 6px;
+  background: var(--socket);
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--rune);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+button.primary {
+  border-color: var(--ember);
+  background: var(--ember);
+  color: var(--deep);
+  font-weight: 700;
+}
+
+button.primary:hover:not(:disabled) {
+  background: #ffd877;
+  border-color: #ffd877;
+}
+
+/* Layout ------------------------------------------------------------------ */
+
+.table {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 24px 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+
+@media (min-width: 1100px) {
+  .table {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    align-items: start;
+  }
+}
+
+/* Board ------------------------------------------------------------------- */
+
+.board-wrap {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(155, 163, 182, 0.18), 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+
+#board {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 960 / 540;
+}
+
+.slots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.slot {
+  position: absolute;
+  pointer-events: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+}
+
+.slot:hover:not(:disabled) {
+  border: 0;
+}
+
+.slot:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.end {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 4px;
+  padding: 24px;
+  background: rgba(16, 20, 31, 0.82);
+  text-align: center;
+}
+
+.end[hidden] {
+  display: none;
+}
+
+.end h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  color: var(--ember);
+}
+
+.end p {
+  max-width: 34ch;
+  margin: 0 0 14px;
+}
+
+.end-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* HUD and hand ------------------------------------------------------------ */
+
+.hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  margin: 16px 2px 8px;
+  color: var(--rune);
+}
+
+.round {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1.3rem;
+  color: var(--text);
+}
+
+.energy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pip {
+  width: 12px;
+  height: 12px;
+  transform: rotate(45deg);
+  border: 1.5px solid var(--stone);
+  background: var(--socket);
+}
+
+.pip.on {
+  border-color: var(--ember);
+  background: var(--ember);
+  box-shadow: 0 0 8px rgba(255, 201, 74, 0.55);
+}
+
+.energy-text {
+  margin-left: 6px;
+  color: var(--text);
+}
+
+.play {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.hand {
+  flex: 1 1 520px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 128px));
+  gap: 12px;
+  min-height: 124px;
+  align-items: end;
+}
+
+.hand-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  align-self: center;
+  color: var(--rune);
+}
+
+.card {
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 10px;
+  transition: transform 140ms ease-out;
+}
+
+.card canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 128 / 128;
+}
+
+.card:hover:not(:disabled) {
+  transform: translateY(-4px);
+}
+
+.card[aria-pressed='true'] {
+  transform: translateY(-10px);
+  filter: drop-shadow(0 0 10px rgba(255, 201, 74, 0.55));
+}
+
+.card.unplayable {
+  opacity: 0.5;
+}
+
+.run {
+  flex: 0 0 auto;
+  min-width: 13rem;
+  padding: 14px 22px;
+  font-size: 1.15rem;
+}
+
+.hint {
+  min-height: 1.5em;
+  margin: 12px 2px 0;
+  color: var(--rune);
+}
+
+/* Log --------------------------------------------------------------------- */
+
+.log {
+  border: 1px solid rgba(155, 163, 182, 0.18);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: rgba(16, 20, 31, 0.6);
+}
+
+.log h2 {
+  margin: 0 0 8px;
+  font-family: var(--serif);
+  font-size: 1.25rem;
+}
+
+.log ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+  font-size: 0.95rem;
+  color: var(--rune);
+}
+
+.log li {
+  padding: 2px 0;
+}
+
+.log li[data-type='round-start'],
+.log li[data-type='placement-start'] {
+  margin-top: 10px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.log li[data-type='damage'] {
+  color: var(--text);
+}
+
+.log li[data-type='battle-end'] {
+  margin-top: 10px;
+  color: var(--ember);
+  font-weight: 700;
+}
+
+.foot {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 24px 32px;
+  color: var(--rune);
+  font-size: 0.95rem;
+}
+
+.foot a {
+  color: var(--text);
+}
+
+/* Small screens ----------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .top,
+  .table,
+  .foot {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .hand {
+    flex-basis: 100%;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    min-height: 0;
+  }
+
+  .run {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+}

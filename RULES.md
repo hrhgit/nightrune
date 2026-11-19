@@ -26,16 +26,16 @@ Status: **done** = implemented and tested; **partial** = implemented in part (se
 | Id | Rule | Status |
 |---|---|---|
 | R-01 | Each side has a 4-slot line and HP. Player HP is 30 and does not heal between the three battles of a run. Enemy HP and line come from the enemy table. | partial: single battle only [T11] |
-| R-02 | A battle is a sequence of rounds. Each round is placement, then run. | partial: run only; placement [T02] |
+| R-02 | A battle is a sequence of rounds. Each round is placement, then run. | done |
 
 ## Placement
 
 | Id | Rule | Status |
 |---|---|---|
-| R-03 | At the start of placement, draw up to 4 cards in hand. If the draw pile is empty, shuffle the discard pile into it and keep drawing. | planned [T02] |
-| R-04 | At the start of placement, energy is set to 3. Unspent energy from the previous round is lost. | planned [T02] |
-| R-05 | Placing a card costs its energy cost; a card cannot be placed without enough energy. There is no other limit on cards per round. A card can be placed (a) into an empty slot, (b) onto an occupied slot, sending the old card and any cards stacked under it to the discard pile, or (c) by merging (R-15). All three pay the cost. | planned [T02] |
-| R-06 | At the end of placement, cards left in hand go to the discard pile. | planned [T02] |
+| R-03 | At the start of placement, draw up to 4 cards in hand. If the draw pile is empty, shuffle the discard pile into it and keep drawing. | done |
+| R-04 | At the start of placement, energy is set to 3. Unspent energy from the previous round is lost. | done |
+| R-05 | Placing a card costs its energy cost; a card cannot be placed without enough energy. There is no other limit on cards per round. A card can be placed (a) into an empty slot, (b) onto an occupied slot, sending the old card and any cards stacked under it to the discard pile, or (c) by merging (R-15). All three pay the cost. | partial: (a) and (b) done; a same-name placement is refused until merging exists [T07] |
+| R-06 | At the end of placement, cards left in hand go to the discard pile. | done |
 
 ## Run
 
@@ -65,7 +65,7 @@ Status: **done** = implemented and tested; **partial** = implemented in part (se
 
 | Id | Rule | Status |
 |---|---|---|
-| R-16 | Randomness is used only for shuffling and for the three-card reward choice after a battle, and all of it comes from the seed. The same seed with the same actions must produce exactly the same result. | partial: no randomness exists yet; engine lint already bans clock and `Math.random` [T06] |
+| R-16 | Randomness is used only for shuffling and for the three-card reward choice after a battle, and all of it comes from the seed. The same seed with the same actions must produce exactly the same result. | partial: seeded shuffle done (generator state lives in the battle state; engine lint bans clock and `Math.random`); reward choice [T11]; replay command [T06] |
 
 ## Enemies
 

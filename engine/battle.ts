@@ -12,6 +12,7 @@ import {
   type CardDef,
   type CardInstance,
   type EndReason,
+  type EnemyDef,
   type GameEvent,
   type Owner,
   type PlayerState,
@@ -37,6 +38,14 @@ const CARD_TABLE: Readonly<Record<string, CardDef>> = CARDS;
 export function cardDef(cardId: string): CardDef {
   const def = CARD_TABLE[cardId];
   if (def === undefined) throw new Error(`Unknown card id: ${cardId}`);
+  return def;
+}
+
+const ENEMY_TABLE: Readonly<Record<string, EnemyDef>> = ENEMIES;
+
+export function enemyDef(enemyId: string): EnemyDef {
+  const def = ENEMY_TABLE[enemyId];
+  if (def === undefined) throw new Error(`Unknown enemy id: ${enemyId}`);
   return def;
 }
 

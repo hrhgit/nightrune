@@ -31,3 +31,24 @@ describe('engine purity lint (R-16: all randomness comes from the seed)', () => 
     expect(ids).toContain('no-restricted-imports');
   });
 });
+
+describe('UI and text code reach rules only through the engine public API', () => {
+  for (const dir of ['web', 'present', 'cli', 'bots']) {
+    it(`rejects reading the rule table from ${dir}/`, async () => {
+      const ids = await ruleIds("import { RULES } from '../data/rules.ts';\nexport const n = RULES.handSize;\n", `${dir}/__fixture__.ts`);
+      expect(ids).toContain('no-restricted-imports');
+    });
+    it(`rejects importing engine internals from ${dir}/`, async () => {
+      const ids = await ruleIds("import { shuffle } from '../engine/rng.ts';\nexport const f = shuffle;\n", `${dir}/__fixture__.ts`);
+      expect(ids).toContain('no-restricted-imports');
+    });
+    it(`allows the engine public API from ${dir}/`, async () => {
+      const ids = await ruleIds("import { step } from '../engine/index.ts';\nexport const f = step;\n", `${dir}/__fixture__.ts`);
+      expect(ids).toEqual([]);
+    });
+  }
+
+  it('rejects Math.random in web/ (visuals come from the seed)', async () => {
+    expect(await ruleIds('export const x = Math.random();\n', 'web/__fixture__.ts')).toContain('no-restricted-properties');
+  });
+});
