@@ -333,6 +333,7 @@ function buildBeats(events: readonly GameEvent[], motion: boolean): Beat[] {
         break;
       case 'trigger':
       case 'grow':
+      case 'refire':
       case 'fizzle':
       case 'block':
       case 'damage': {
@@ -415,6 +416,8 @@ function enterBeat(beat: Beat, now: number): void {
   app.firing = new Map();
   for (const e of beat.events) {
     if (e.type === 'trigger') app.firing.set(e.uid, 1);
+    // R-13: the re-fired card lights up too, so the player sees which card fired again.
+    if (e.type === 'refire') app.firing.set(e.targetUid, 1);
     if (e.type === 'damage') {
       app.hpBefore[e.target] = app.shownHp[e.target];
       app.shownHp[e.target] = e.hpAfter;
@@ -422,7 +425,7 @@ function enterBeat(beat: Beat, now: number): void {
     // Shown with or without motion: reduced motion removes movement (see drawStrikes), not information.
     // R-14: the grown card shows its new value from the event, as HP does; the UI adds nothing.
     if (e.type === 'grow') app.shownValue.set(e.targetUid, e.valueAfter);
-    if (e.type === 'damage' || e.type === 'block' || e.type === 'grow' || e.type === 'fizzle') app.impacts.push({ event: e, born: now });
+    if (e.type === 'damage' || e.type === 'block' || e.type === 'grow' || e.type === 'refire' || e.type === 'fizzle') app.impacts.push({ event: e, born: now });
   }
   appendLog(beat.events);
   announce();

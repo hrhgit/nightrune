@@ -20,16 +20,24 @@ export function cardEffectText(card: Pick<CardInstance, 'cardId' | 'level' | 'gr
       return `Blocks ${cardValue(card)} damage from the opposing slot only.`;
     case 'grow':
       return `Gives the next card +${cardValue(card)} for the rest of the battle.`;
+    case 'refire':
+      return 'Fires the previous card again, in this slot. A card is fired again at most once per round.';
     default:
       return assertNever(kind);
   }
 }
 
-const FIZZLE_TEXT: Record<FizzleReason, (slot: number) => string> = {
-  'no-slot': () => 'there is no next slot',
-  'empty-slot': (slot) => `slot ${slot + 1} is empty`,
-  'no-value': (slot) => `the card in slot ${slot + 1} has no value to change`,
+const FIZZLE_TEXT: Record<FizzleReason, (e: Extract<GameEvent, { type: 'fizzle' }>) => string> = {
+  'no-slot': (e) => `there is no ${e.target} slot`,
+  'empty-slot': (e) => `slot ${e.targetSlot} is empty`,
+  'no-value': (e) => `the card in slot ${e.targetSlot} has no value to change`,
+  'already-refired': (e) => `the card in slot ${e.targetSlot} was already fired again this round`,
 };
+
+/** "Slot 3: " for a card firing in its own slot; "Slot 3 (from slot 2): " for one fired again by another card. */
+function at(e: { slot: number; sourceSlot: number }): string {
+  return e.slot === e.sourceSlot ? `Slot ${e.slot}: ` : `Slot ${e.slot} (from slot ${e.sourceSlot}): `;
+}
 
 const SIDE: Record<'player' | 'enemy', string> = { player: 'You', enemy: 'Enemy' };
 
@@ -58,9 +66,11 @@ export function eventText(e: GameEvent, enemyId: string): string {
     case 'damage':
       return `Slot ${e.slot}: ${who(e.target)} ${e.target === 'player' ? 'take' : 'takes'} ${e.amount} damage, ${e.hpAfter} HP left.`;
     case 'grow':
-      return `Slot ${e.slot}: ${cardName(e.cardId)} gives ${cardName(e.targetCardId)} in slot ${e.targetSlot} +${e.amount} for the battle (now ${e.valueAfter}).`;
+      return `${at(e)}${cardName(e.cardId)} gives ${cardName(e.targetCardId)} in slot ${e.targetSlot} +${e.amount} for the battle (now ${e.valueAfter}).`;
+    case 'refire':
+      return `${at(e)}${cardName(e.cardId)} fires ${cardName(e.targetCardId)} in slot ${e.targetSlot} again.`;
     case 'fizzle':
-      return `Slot ${e.slot}: ${cardName(e.cardId)} fizzles: ${FIZZLE_TEXT[e.reason](e.slot)}.`;
+      return `${at(e)}${cardName(e.cardId)} fizzles: ${FIZZLE_TEXT[e.reason](e)}.`;
     case 'battle-end':
       return battleEndText(e.reason, e.round, enemyName);
     default:

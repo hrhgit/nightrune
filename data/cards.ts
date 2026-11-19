@@ -24,6 +24,14 @@ export const CARDS = {
     owner: 'player',
     effect: { kind: 'grow', target: 'next', amount: [1, 2, 3] },
   },
+  echo: {
+    name: 'Echo',
+    direction: 'flow',
+    cost: 2,
+    owner: 'player',
+    // Re-fires the previous card once. The upgraded effect is not decided; merging (T07) is not built.
+    effect: { kind: 'refire', target: 'previous' },
+  },
   'dummy-swing': {
     name: 'Straw Swing',
     direction: 'attack',

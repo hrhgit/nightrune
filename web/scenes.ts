@@ -5,7 +5,7 @@
 import type { GameEvent, Level, Owner } from '../engine/index.ts';
 
 /** Events the board animates when a slot fires. */
-export type ImpactEvent = Extract<GameEvent, { type: 'damage' } | { type: 'block' } | { type: 'grow' } | { type: 'fizzle' }>;
+export type ImpactEvent = Extract<GameEvent, { type: 'damage' } | { type: 'block' } | { type: 'grow' } | { type: 'refire' } | { type: 'fizzle' }>;
 
 /** A card id at level 1, or [card id, level]. */
 /** A card id, or [id, level], or [id, level, growth] (R-14). */
@@ -88,7 +88,7 @@ export const SCENES: readonly SceneSpec[] = [
     firing: [{ side: 'player', slot: 1, glow: 1 }],
     impacts: [
       {
-        event: { type: 'grow', round: 1, slot: 1, side: 'player', uid: 'p1', cardId: 'whetstone', targetSlot: 2, targetUid: 'p2', targetCardId: 'slash', amount: 1, valueAfter: 5 },
+        event: { type: 'grow', round: 1, slot: 1, side: 'player', uid: 'p1', cardId: 'whetstone', sourceSlot: 1, targetSlot: 2, targetUid: 'p2', targetCardId: 'slash', amount: 1, valueAfter: 5 },
         age: 0.5,
       },
     ],
@@ -105,7 +105,50 @@ export const SCENES: readonly SceneSpec[] = [
       { side: 'player', slot: 4, glow: 1 },
       { side: 'enemy', slot: 4, glow: 1 },
     ],
-    impacts: [{ event: { type: 'fizzle', round: 1, slot: 4, side: 'player', uid: 'p4', cardId: 'whetstone', reason: 'no-slot' }, age: 0.5 }],
+    impacts: [{ event: { type: 'fizzle', round: 1, slot: 4, side: 'player', uid: 'p4', cardId: 'whetstone', sourceSlot: 4, target: 'next', targetSlot: null, reason: 'no-slot' }, age: 0.5 }],
+  },
+  {
+    id: 'echo-refire',
+    title: 'Echo fires the previous card again',
+    look: 'Slot 2 firing: a green arc runs back from the Echo to the Slash in slot 1, "again" rises over the Slash, and both stones glow. Echo has no value medallion.',
+    seed: 7,
+    enemyLine: DUMMY,
+    playerLine: ['slash', 'echo', null, null],
+    cursor: 2,
+    firing: [
+      { side: 'player', slot: 2, glow: 1 },
+      { side: 'player', slot: 1, glow: 1 },
+      { side: 'enemy', slot: 2, glow: 1 },
+    ],
+    impacts: [
+      {
+        event: { type: 'refire', round: 1, slot: 2, side: 'player', uid: 'p2', cardId: 'echo', sourceSlot: 2, targetSlot: 1, targetUid: 'p1', targetCardId: 'slash' },
+        age: 0.5,
+      },
+    ],
+  },
+  {
+    id: 'echo-after-whetstone',
+    title: 'Echo re-fires Whetstone, which fizzles on the Echo',
+    look: 'Slot 2 firing: a green arc from the Echo back to the Whetstone, then "fizzles" under the Whetstone: its next card is the Echo, which has no value.',
+    seed: 7,
+    enemyLine: DUMMY,
+    playerLine: ['whetstone', 'echo', null, null],
+    cursor: 2,
+    firing: [
+      { side: 'player', slot: 2, glow: 1 },
+      { side: 'player', slot: 1, glow: 1 },
+    ],
+    impacts: [
+      {
+        event: { type: 'refire', round: 1, slot: 2, side: 'player', uid: 'p2', cardId: 'echo', sourceSlot: 2, targetSlot: 1, targetUid: 'p1', targetCardId: 'whetstone' },
+        age: 0.5,
+      },
+      {
+        event: { type: 'fizzle', round: 1, slot: 2, side: 'player', uid: 'p1', cardId: 'whetstone', sourceSlot: 1, target: 'next', targetSlot: 2, reason: 'no-value' },
+        age: 0.5,
+      },
+    ],
   },
   {
     id: 'trade-hits',
