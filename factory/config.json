@@ -1,0 +1,26 @@
+{
+  "repo": "hrhgit/nightrune",
+  "labels": {
+    "trigger": "ready-for-agent",
+    "working": "agent-working",
+    "done": "agent-done",
+    "help": "agent-needs-help"
+  },
+  "maxAttempts": 3,
+  "agentTimeoutMinutes": 40,
+  "reviewTimeoutMinutes": 30,
+  "areas": {
+    "engine": {
+      "executor": "codex",
+      "paths": ["engine/", "data/", "cli/", "bots/", "tests/", "RULES.md", "README.md", "evidence/", "factory/rule-coverage.md", "factory/corrections.md"]
+    },
+    "web": {
+      "executor": "claude",
+      "paths": ["web/", "present/", "scripts/", "tests/", "README.md", "evidence/", "factory/rule-coverage.md", "factory/corrections.md"]
+    }
+  },
+  "executors": {
+    "codex": { "model": "gpt-6-luna", "effort": "high" },
+    "claude": { "model": "claude-opus-5-5" }
+  }
+}
