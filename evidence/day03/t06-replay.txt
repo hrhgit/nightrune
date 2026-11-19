@@ -1,0 +1,76 @@
+Real run on branch feat/t06-replay, 2026-11-18. Paths shortened to the file name; the round-by-round log of the first command is cut; its last two lines are kept.
+
+$ npm run -s play -- --seed 7 --record seed7.json
+  [... round log cut ...]
+Final HP: you 18, Training Dummy 0
+Recorded 12 actions to seed7.json (state hash bb20ce7f39161e47)
+exit 0
+
+$ sh -c head -c 300 seed7.json
+{
+  "format": "nightrune-record/1",
+  "seed": 7,
+  "enemyId": "training-dummy",
+  "actions": [
+    {
+      "type": "place",
+      "uid": "p7",
+      "slot": 1
+    },
+    {
+      "type": "place",
+      "uid": "p6",
+      "slot": 2
+    },
+    {
+      "type": "place",
+      "uid": "p9",
+      "slot": 3
+exit 0
+
+$ npm run -s replay -- seed7.json
+Replayed 12 actions, seed 7, vs Training Dummy
+Outcome: won, round 3
+Final HP: you 18, Training Dummy 0
+State hash: bb20ce7f39161e47
+Matches the expected hash (from the record).
+exit 0
+
+$ npm run -s replay -- seed7.json --expect 0000000000000000
+Replayed 12 actions, seed 7, vs Training Dummy
+Outcome: won, round 3
+Final HP: you 18, Training Dummy 0
+State hash: bb20ce7f39161e47
+Hash mismatch: expected 0000000000000000, replay gave bb20ce7f39161e47
+exit 1
+
+$ npm run -s replay -- illegal.json
+Action 0 ({"type":"place","uid":"p99","slot":1}) was refused: card-not-in-hand. Cannot place p99 in slot 1: card-not-in-hand
+exit 1
+
+$ npm run -s replay -- broken.json
+Cannot read broken.json as JSON: Unexpected end of JSON input
+exit 2
+
+$ npm run -s replay -- badshape.json
+badshape.json is not a battle record:
+  - seed must be a whole number from 0 to 4294967295
+  - enemyId must be one of: training-dummy
+  - actions must be a list
+exit 2
+
+$ npm run -s replay -- partial.json
+Replayed 3 actions, seed 7, vs Training Dummy
+Outcome: ongoing, round 1
+Final HP: you 30, Training Dummy 24
+State hash: 107002b8b4ac9594
+exit 0
+
+$ npm run -s replay -- seed7.json
+Replayed 12 actions, seed 7, vs Training Dummy
+Outcome: won, round 3
+Final HP: you 18, Training Dummy 0
+State hash: bb20ce7f39161e47
+Matches the expected hash (from the record).
+exit 0
+

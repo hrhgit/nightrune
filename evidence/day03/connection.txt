@@ -1,0 +1,11 @@
+$ gh --version | head -1
+gh version 2.104.0 (2026-11-12)
+
+$ gh issue list --repo hrhgit/nightrune --state open
+13	OPEN	T05 Echo: re-fire the previous card (R-13)		2026-11-19T05:01:24Z
+12	OPEN	T04 Whetstone: growth on the next card (R-12, R-14)		2026-11-19T05:01:23Z
+11	OPEN	T06 Replay command: check a recorded battle from the terminal (R-16)		2026-11-19T05:01:22Z
+9	OPEN	AGENTS.md: project rules, each with what enforces it		2026-11-19T04:56:59Z
+
+$ gh issue view 11 --repo hrhgit/nightrune --json number,title,state,body
+{"body":"R-16 says the same seed with the same actions gives the same result. The engine is deterministic and `tests/seed.test.ts` checks it, but there is no way to take a battle someone played and check it from the terminal. A bug report should be a file you can replay.\n\n## Acceptance criteria\n\n- [ ] `npm run play -- --seed 7 --record <file>` writes a record: format version, seed, enemy, the list of actions, and a hash of the final state.\n- [ ] `npm run replay -- <file>` replays the actions through `step()` and prints the outcome, final HP, the number of actions and the final-state hash. Exit 0.\n- [ ] `--expect <hash>` (or the hash stored in the record) that does not match the replayed state: prints both hashes, exit 1.\n- [ ] Failure case: a record whose action is illegal at its point (for example placing a card that is not in hand): prints the action's index and the engine's refusal reason, exit 1.\n- [ ] Failure case: a file that is not valid JSON, or lacks seed/actions: prints what is wrong, exit 2.\n- [ ] Edge case: a record that stops before the battle ends: replays and reports the outcome as `ongoing`, exit 0.\n- [ ] The hash is computed from the engine state only (no clock), and the same record gives the same hash on every run; a test replays a recorded greedy game on several seeds.\n- [ ] RULES.md R-16 status updated; the rule-id test still passes.\n","number":11,"state":"OPEN","title":"T06 Replay command: check a recorded battle from the terminal (R-16)"}

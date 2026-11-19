@@ -1,7 +1,8 @@
 // Plays one battle with the greedy bot and prints every engine event.
-// Usage: npm run play [-- --seed 7] [-- --json]
+// Usage: npm run play [-- --seed 7] [-- --json] [-- --record <file>]
 import { playGreedy } from '../bots/greedy.ts';
-import { enemyDef, startBattle } from '../engine/index.ts';
+import { writeFileSync } from 'node:fs';
+import { enemyDef, makeRecord, startBattle } from '../engine/index.ts';
 import { parseSeed, SEED_HELP } from '../present/seed.ts';
 import { eventText } from '../present/text.ts';
 
@@ -14,6 +15,12 @@ if (parsed === null) {
   process.exit(2);
 }
 const seed: number = parsed;
+const recordAt = args.indexOf('--record');
+const recordFile = recordAt === -1 ? undefined : args[recordAt + 1];
+if (recordAt !== -1 && (recordFile === undefined || recordFile.startsWith('--'))) {
+  console.error('--record needs a file name.\nUsage: npm run play [-- --seed 7] [-- --json] [-- --record <file>]');
+  process.exit(2);
+}
 const enemyId = 'training-dummy';
 
 const opening = startBattle({ enemyId, seed });
@@ -27,4 +34,10 @@ if (json) {
   console.log(`Nightrune battle vs ${enemy.name} (HP ${enemy.hp}), seed ${seed}, greedy bot`);
   for (const e of events) console.log(`${e.type === 'placement-start' ? '\n' : ''}${eventText(e, enemyId)}`);
   console.log(`\nFinal HP: you ${played.state.player.hp}, ${enemy.name} ${played.state.enemy.hp}`);
+}
+
+if (recordFile !== undefined) {
+  const record = makeRecord(seed, enemyId, played.actions, played.state);
+  writeFileSync(recordFile, `${JSON.stringify(record, null, 2)}\n`);
+  console.error(`Recorded ${record.actions.length} actions to ${recordFile} (state hash ${record.finalHash ?? ''})`);
 }

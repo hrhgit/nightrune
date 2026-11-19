@@ -13,6 +13,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "play": "tsx cli/play.ts",
+    "replay": "tsx cli/replay.ts",
     "scenes": "tsx scripts/scenes.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p web",
     "lint": "eslint .",

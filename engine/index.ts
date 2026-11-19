@@ -14,3 +14,4 @@ export { nextBelow, nextUint32, seedRng, shuffle, type RngState } from './rng.ts
 export { assertNever, EngineError } from './types.ts';
 export type * from './types.ts';
 export type { EnemyId } from '../data/enemies.ts';
+export { makeRecord, parseRecord, RECORD_FORMAT, replay, stateHash, type BattleRecord, type ReplayResult } from './record.ts';

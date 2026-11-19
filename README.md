@@ -20,7 +20,7 @@ One battle against the Training Dummy is playable in the browser and from the co
 
 Cards: Slash (attack) and Parry (blocks the attack in its own slot). The starter deck is 7 Slash + 3 Parry; Slash stands in for Whetstone, Echo and Scout until they exist.
 
-Not built yet: the other cards, merging, three-battle runs, a replay command. See [RULES.md](RULES.md) for the status of every rule.
+Not built yet: the other cards, merging, three-battle runs. See [RULES.md](RULES.md) for the status of every rule.
 
 ## Run it
 
@@ -31,6 +31,8 @@ npm ci
 npm run dev           # the web page at http://localhost:5173
 npm run play          # one battle with the greedy bot, seed 1
 npm run play -- --seed 7 --json
+npm run play -- --seed 7 --record seed7.json   # save the battle
+npm run replay -- seed7.json                   # replay it and check the final-state hash
 npm run check         # typecheck + lint + tests + build (same as CI)
 ```
 
