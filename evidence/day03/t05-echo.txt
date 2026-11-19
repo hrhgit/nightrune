@@ -1,0 +1,77 @@
+T05 Echo (#13): real runs on branch feat/t05-echo, with the same engine and tests as its final commit, 2026-11-19T05:23Z
+
+$ npm run play -- --seed 1   (rounds 1-2; only Round, Slot and Echo lines)
+Round 1: energy set to 3.
+Drew Echo.
+Placed Echo in slot 2 for 2 energy.
+Round 1: the lines strike.
+Slot 1: You fire Whetstone.
+Slot 1: Whetstone fizzles: the card in slot 2 has no value to change.
+Slot 2: You fire Echo.
+Slot 2: Echo fires Whetstone in slot 1 again.
+Slot 2 (from slot 1): Whetstone fizzles: the card in slot 2 has no value to change.
+Slot 2: Training Dummy fires Straw Swing.
+Slot 2: You take 3 damage, 27 HP left.
+Slot 4: Training Dummy fires Straw Swing.
+Slot 4: You take 3 damage, 24 HP left.
+Round 2: energy set to 3.
+Round 2: the lines strike.
+Slot 1: You fire Slash.
+Slot 1: Training Dummy takes 4 damage, 20 HP left.
+Slot 2: You fire Echo.
+Slot 2: Echo fires Slash in slot 1 again.
+Slot 2: Training Dummy fires Straw Swing.
+Slot 2: Training Dummy takes 4 damage, 16 HP left.
+Slot 2: You take 3 damage, 21 HP left.
+Slot 3: You fire Slash.
+Slot 3: Training Dummy takes 4 damage, 12 HP left.
+Slot 4: You fire Parry.
+
+$ npm run play -- --seed 12   (Echo lines only)
+Drew Echo.
+Placed Echo in slot 1 for 2 energy, replacing the card there.
+Slot 1: You fire Echo.
+Slot 1: Echo fizzles: there is no previous slot.
+Echo discarded from the line.
+
+$ npx vitest run tests/refire.test.ts --reporter verbose
+ ✓ tests/refire.test.ts > T05 Echo card data > is a cost-2 flow card that re-fires the previous card, and the starter deck holds one 2ms
+ ✓ tests/refire.test.ts > T05 Echo card data > has no value: no number on the card, and its text and events come from the table and payloads 1ms
+ ✓ tests/refire.test.ts > R-13 a re-fired card counts in the current slot > a re-fired Slash adds its attack to the Echo's slot, not to its own 0ms
+ ✓ tests/refire.test.ts > R-13 a re-fired card counts in the current slot > a re-fired Parry adds its block to the Echo's slot 0ms
+ ✓ tests/refire.test.ts > R-13 a re-fired card counts in the current slot > a re-fired card uses its current value, growth included (R-14) 0ms
+ ✓ tests/refire.test.ts > R-12 R-13 Echo fizzles instead of skipping > Echo in slot 1 fizzles: no previous slot, no wrap-around to slot 4 0ms
+ ✓ tests/refire.test.ts > R-12 R-13 Echo fizzles instead of skipping > Echo after an empty slot fizzles and does not reach the card before it 0ms
+ ✓ tests/refire.test.ts > R-12 R-13 Echo fizzles instead of skipping > two Echoes in a row: the second re-fires the first, whose target was already re-fired this round, so it fizzles 0ms
+ ✓ tests/refire.test.ts > R-12 R-13 Echo fizzles instead of skipping > the once-per-round limit starts again next round 0ms
+ ✓ tests/refire.test.ts > R-12 R-13 Echo fizzles instead of skipping > Whetstone then Echo: the re-fired Whetstone targets the Echo, which has no value, so it fizzles 0ms
+      Tests  10 passed (10)
+
+Mutations: each change was made to engine/battle.ts, the Echo tests were run, and the file was restored.
+== mutation: no once-per-round limit
+     × two Echoes in a row: the second re-fires the first, whose target was already re-fired this round, so it fizzles 4ms
+     × the once-per-round limit starts again next round 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 8 passed (10)
+== mutation: the limit resets every slot instead of every round
+     × two Echoes in a row: the second re-fires the first, whose target was already re-fired this round, so it fizzles 3ms
+     × the once-per-round limit starts again next round 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 8 passed (10)
+== mutation: a re-fired card's attack and block are dropped
+     × a re-fired Slash adds its attack to the Echo's slot, not to its own 3ms
+     × a re-fired Parry adds its block to the Echo's slot 2ms
+     × a re-fired card uses its current value, growth included (R-14) 0ms
+     × two Echoes in a row: the second re-fires the first, whose target was already re-fired this round, so it fizzles 0ms
+     × the once-per-round limit starts again next round 0ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  5 failed | 5 passed (10)
+== mutation: an empty previous slot is skipped to the card before it
+     × has no value: no number on the card, and its text and events come from the table and payloads 4ms
+     × Echo after an empty slot fizzles and does not reach the card before it 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 8 passed (10)
+== mutation: slot 1 wraps around to slot 4
+     × Echo in slot 1 fizzles: no previous slot, no wrap-around to slot 4 3ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 9 passed (10)

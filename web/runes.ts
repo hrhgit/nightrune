@@ -55,6 +55,31 @@ export const RUNES: Readonly<Record<string, readonly RuneStroke[]>> = {
       [0.1, 0.05],
     ],
   ],
+  // An echo: two rings of sound spreading back toward the previous stone, from a point on the right.
+  echo: [
+    [
+      [0.2, 0.42],
+      [0.04, 0.33],
+      [-0.06, 0.18],
+      [-0.1, 0.0],
+      [-0.06, -0.18],
+      [0.04, -0.33],
+      [0.2, -0.42],
+    ],
+    [
+      [0.06, 0.8],
+      [-0.23, 0.62],
+      [-0.43, 0.34],
+      [-0.5, 0.0],
+      [-0.43, -0.34],
+      [-0.23, -0.62],
+      [0.06, -0.8],
+    ],
+    [
+      [0.35, -0.12],
+      [0.35, 0.12],
+    ],
+  ],
   // A straw flail: a stem with a hooked head.
   'dummy-swing': [
     [

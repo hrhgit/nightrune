@@ -21,6 +21,7 @@ import {
   type SideState,
   type Slot,
   type StepResult,
+  type TargetSide,
 } from './types.ts';
 
 export interface BattleSetup {
@@ -223,9 +224,10 @@ interface Contribution {
 
 /**
  * The card's current value: its table value at its level plus its growth (R-14).
+ * Null for a card with no value (a re-fire card): it shows no number and growth cannot change it (R-12).
  * The page and the CLI show this number; they never add growth themselves.
  */
-export function cardValue(card: Pick<CardInstance, 'cardId' | 'level' | 'growth'>): number {
+export function cardValue(card: Pick<CardInstance, 'cardId' | 'level' | 'growth'>): number | null {
   const effect = cardDef(card.cardId).effect;
   const kind = effect.kind;
   switch (kind) {
@@ -233,73 +235,136 @@ export function cardValue(card: Pick<CardInstance, 'cardId' | 'level' | 'growth'
     case 'block':
     case 'grow':
       return (effect.amount[card.level - 1] ?? 0) + card.growth;
+    case 'refire':
+      return null;
     default:
       return assertNever(kind);
   }
 }
 
-/** R-12: whether growth can change this card's value. */
-function hasValue(card: CardInstance): boolean {
-  const kind = cardDef(card.cardId).effect.kind;
-  switch (kind) {
-    case 'attack':
-    case 'block':
-    case 'grow':
-      return true;
-    default:
-      return assertNever(kind);
-  }
+const NOTHING: Contribution = { attack: 0, block: 0 };
+
+/** What one firing of a card did: the line after it (growth may change a card) and its share of the slot. */
+interface Fired {
+  readonly line: readonly Slot[];
+  readonly contribution: Contribution;
 }
 
-function contributionOf(card: CardInstance): Contribution {
-  const kind = cardDef(card.cardId).effect.kind;
+/** One side's firings in one slot of one round. */
+interface Firing {
+  readonly round: number;
+  /** The slot the cursor is on: every attack and block counts here, re-fired ones included (R-13). */
+  readonly slot: number;
+  readonly side: Owner;
+  readonly events: GameEvent[];
+  /** R-13: uids re-fired so far this round on this side. */
+  readonly refired: Set<string>;
+}
+
+/**
+ * Fires the card at `index`: its own effect, plus any growth or re-fire it causes.
+ * The cursor's own card and a re-fired card go through the same path, so a re-fired card
+ * does exactly what it would do on its own, with its current value (R-13, R-14).
+ */
+function fireAt(line: readonly Slot[], index: number, f: Firing): Fired {
+  const card = line[index];
+  if (card === null || card === undefined) return { line, contribution: NOTHING };
+  const effect = cardDef(card.cardId).effect;
+  const kind = effect.kind;
   switch (kind) {
     case 'attack':
-      return { attack: cardValue(card), block: 0 };
+      return { line, contribution: { attack: cardValue(card) ?? 0, block: 0 } };
     case 'block':
-      return { attack: 0, block: cardValue(card) };
+      return { line, contribution: { attack: 0, block: cardValue(card) ?? 0 } };
     case 'grow':
-      return { attack: 0, block: 0 };
+      return { line: fireGrow(line, index, card, effect.target, f), contribution: NOTHING };
+    case 'refire':
+      return fireRefire(line, index, card, effect.target, f);
     default:
       return assertNever(kind);
   }
 }
 
 /**
- * R-12, R-14: a grow effect fired from `index` gives the next card on the same line growth.
- * Returns the line with the grown card replaced by its new instance, or the same line on a fizzle.
+ * R-12: the index a targeted effect from `index` aims at, or null after emitting a fizzle when
+ * that slot is off the line (no wrap-around) or empty. It never skips to a farther card.
  */
-function fireGrow(line: readonly Slot[], index: number, side: Owner, round: number, events: GameEvent[]): readonly Slot[] {
-  const source = line[index];
-  if (source === null || source === undefined) return line;
-  const effect = cardDef(source.cardId).effect;
-  if (effect.kind !== 'grow') return line;
-  const slot = index + 1;
-  const targetIndex = index + 1; // 'next' is the only target so far
-  const target = targetIndex < line.length ? (line[targetIndex] ?? null) : undefined;
-  const fizzle = (reason: FizzleReason): readonly Slot[] => {
-    events.push({ type: 'fizzle', round, slot, side, uid: source.uid, cardId: source.cardId, reason });
-    return line;
-  };
-  if (target === undefined) return fizzle('no-slot');
-  if (target === null) return fizzle('empty-slot');
-  if (!hasValue(target)) return fizzle('no-value');
-  const amount = cardValue(source);
-  const grown: CardInstance = { ...target, growth: target.growth + amount };
-  events.push({
-    type: 'grow',
-    round,
-    slot,
-    side,
+function targetOf(line: readonly Slot[], index: number, source: CardInstance, target: TargetSide, f: Firing): { index: number; card: CardInstance } | null {
+  const targetIndex = target === 'next' ? index + 1 : index - 1;
+  const onLine = targetIndex >= 0 && targetIndex < line.length;
+  const card = onLine ? (line[targetIndex] ?? null) : null;
+  if (card !== null) return { index: targetIndex, card };
+  fizzle(f, index, source, target, onLine ? targetIndex : null, onLine ? 'empty-slot' : 'no-slot');
+  return null;
+}
+
+function fizzle(f: Firing, index: number, source: CardInstance, target: TargetSide, targetIndex: number | null, reason: FizzleReason): void {
+  f.events.push({
+    type: 'fizzle',
+    round: f.round,
+    slot: f.slot,
+    side: f.side,
     uid: source.uid,
     cardId: source.cardId,
-    targetSlot: targetIndex + 1,
-    targetUid: target.uid,
-    targetCardId: target.cardId,
-    amount,
-    valueAfter: cardValue(grown),
+    sourceSlot: index + 1,
+    target,
+    targetSlot: targetIndex === null ? null : targetIndex + 1,
+    reason,
   });
-  return line.map((c, i) => (i === targetIndex ? grown : c));
+}
+
+/** R-12, R-14: a grow effect gives its target growth for the battle; returns the line with the grown card. */
+function fireGrow(line: readonly Slot[], index: number, source: CardInstance, target: TargetSide, f: Firing): readonly Slot[] {
+  const aim = targetOf(line, index, source, target, f);
+  if (aim === null) return line;
+  const before = cardValue(aim.card);
+  const amount = cardValue(source);
+  if (before === null || amount === null) {
+    fizzle(f, index, source, target, aim.index, 'no-value');
+    return line;
+  }
+  const grown: CardInstance = { ...aim.card, growth: aim.card.growth + amount };
+  f.events.push({
+    type: 'grow',
+    round: f.round,
+    slot: f.slot,
+    side: f.side,
+    uid: source.uid,
+    cardId: source.cardId,
+    sourceSlot: index + 1,
+    targetSlot: aim.index + 1,
+    targetUid: aim.card.uid,
+    targetCardId: aim.card.cardId,
+    amount,
+    valueAfter: before + amount,
+  });
+  return line.map((c, i) => (i === aim.index ? grown : c));
+}
+
+/** R-13: a re-fire effect fires its target again, counting in the current slot, at most once per card per round. */
+function fireRefire(line: readonly Slot[], index: number, source: CardInstance, target: TargetSide, f: Firing): Fired {
+  const aim = targetOf(line, index, source, target, f);
+  if (aim === null) return { line, contribution: NOTHING };
+  if (f.refired.has(aim.card.uid)) {
+    fizzle(f, index, source, target, aim.index, 'already-refired');
+    return { line, contribution: NOTHING };
+  }
+  f.refired.add(aim.card.uid);
+  f.events.push({
+    type: 'refire',
+    round: f.round,
+    slot: f.slot,
+    side: f.side,
+    uid: source.uid,
+    cardId: source.cardId,
+    sourceSlot: index + 1,
+    targetSlot: aim.index + 1,
+    targetUid: aim.card.uid,
+    targetCardId: aim.card.cardId,
+  });
+  // The target is always at a lower or higher index than the source, never the source itself,
+  // so a chain of re-fires ends: each one marks a new uid and there are only so many on the line.
+  return fireAt(line, aim.index, f);
 }
 
 function endReason(playerDead: boolean, enemyDead: boolean): EndReason | null {
@@ -315,6 +380,8 @@ function runRound(state: BattleState, events: GameEvent[]): BattleState {
   events.push({ type: 'round-start', round });
   let player: PlayerState = state.player;
   let enemy: SideState = state.enemy;
+  // R-13: a card can be re-fired at most once per round, so the record lasts the round, not the slot.
+  const refired: Record<Owner, Set<string>> = { player: new Set(), enemy: new Set() };
 
   // R-07: the cursor walks slots 1..N; both sides' cards in a slot fire together.
   for (let i = 0; i < RULES.lineLength; i++) {
@@ -326,14 +393,13 @@ function runRound(state: BattleState, events: GameEvent[]): BattleState {
       const card = line[i] ?? null;
       if (card === null) continue;
       events.push({ type: 'trigger', round, slot, side, uid: card.uid, cardId: card.cardId });
-      const c = contributionOf(card);
-      totals[side].attack += c.attack;
-      totals[side].block += c.block;
-      // R-12, R-14: growth lands on the next card now, so it fires with its new value this round.
-      const after = fireGrow(line, i, side, round, events);
-      if (after !== line) {
-        if (side === 'player') player = { ...player, line: after };
-        else enemy = { ...enemy, line: after };
+      // R-12, R-14: growth lands on its target now, so a later slot fires with the new value this round.
+      const fired = fireAt(line, i, { round, slot, side, events, refired: refired[side] });
+      totals[side].attack += fired.contribution.attack;
+      totals[side].block += fired.contribution.block;
+      if (fired.line !== line) {
+        if (side === 'player') player = { ...player, line: fired.line };
+        else enemy = { ...enemy, line: fired.line };
       }
     }
 

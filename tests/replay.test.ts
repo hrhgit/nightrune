@@ -29,8 +29,9 @@ describe('R-16 a recorded battle replays to the same final state', () => {
 
   it('pins the hash of seed 7, so a change in the engine or the hash shows up', () => {
     // Recorded with `npm run play -- --seed 7 --record`; the greedy bot wins in round 3 at 18 HP.
-    // Changed from bb20ce7f39161e47 in T04: the starter deck gained Whetstone and cards gained `growth`.
-    expect(greedyRecord(7).finalHash).toBe('da7868cf011d765f');
+    // Changed from bb20ce7f39161e47 in T04 (Whetstone in the deck, cards gained `growth`)
+    // and from da7868cf011d765f in T05 (Echo in the deck).
+    expect(greedyRecord(7).finalHash).toBe('fb4d0087b527995d');
   });
 
   it('the hash depends on the state values, not on key order', () => {
@@ -76,7 +77,7 @@ describe('R-16 replay command exit codes', () => {
 
   it('0 when the hash matches, 1 on a mismatch or a refused action, 2 on a malformed file', () => {
     const ok = run(good);
-    expect([ok.status, ok.stdout]).toEqual([0, expect.stringContaining('State hash: da7868cf011d765f')]);
+    expect([ok.status, ok.stdout]).toEqual([0, expect.stringContaining('State hash: fb4d0087b527995d')]);
     expect(run(good, '--expect', '0000000000000000').status).toBe(1);
     const illegal = write('illegal.json', JSON.stringify({ ...greedyRecord(7), actions: [{ type: 'place', uid: 'p99', slot: 1 }], finalHash: undefined }));
     const refused = run(illegal);

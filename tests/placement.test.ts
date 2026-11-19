@@ -82,7 +82,8 @@ describe('R-05 placing a card costs its energy', () => {
   });
 
   it('has no limit on cards per round other than energy', () => {
-    let state = fresh();
+    // Cost-1 cards only, so the count is decided by energy and not by which cards the shuffle dealt.
+    let state = createBattle({ enemyId: 'training-dummy', seed: 1, deck: ['slash', 'parry', 'slash', 'parry', 'slash'] });
     for (const slot of [1, 2, 3]) state = step(state, { type: 'place', uid: firstHandUid(state), slot }).state;
     expect(state.player.energy).toBe(0);
     expectRejected(state, { type: 'place', uid: firstHandUid(state), slot: 4 }, 'not-enough-energy');

@@ -19,7 +19,7 @@ function power(spec: SceneSpec, side: Owner, slot: number): { attack: number; bl
   const c = cardAt(spec, side, slot);
   if (c === null) return { attack: 0, block: 0 };
   const kind = cardDef(c.id).effect.kind;
-  const value = cardValue({ cardId: c.id, level: c.level, growth: c.growth });
+  const value = cardValue({ cardId: c.id, level: c.level, growth: c.growth }) ?? 0;
   return { attack: kind === 'attack' ? value : 0, block: kind === 'block' ? value : 0 };
 }
 
@@ -65,19 +65,25 @@ describe('scene preview definitions', () => {
         }
       });
 
-      it('R-12 R-14: grow and fizzle marks match the cards on the line', () => {
+      it('R-12 R-13 R-14: grow, re-fire and fizzle marks match the cards on the line', () => {
         for (const { event: e } of spec.impacts ?? []) {
-          if (e.type !== 'grow' && e.type !== 'fizzle') continue;
-          const source = cardAt(spec, e.side, e.slot);
+          if (e.type !== 'grow' && e.type !== 'refire' && e.type !== 'fizzle') continue;
+          const source = cardAt(spec, e.side, e.sourceSlot);
           expect(source?.id).toBe(e.cardId);
-          expect(cardDef(e.cardId).effect.kind).toBe('grow');
-          const target = e.slot < 4 ? cardAt(spec, e.side, e.slot + 1) : undefined;
+          const effect = cardDef(e.cardId).effect;
+          if (effect.kind !== 'grow' && effect.kind !== 'refire') throw new Error(`${e.cardId} has no target`);
+          const aim = effect.target === 'next' ? e.sourceSlot + 1 : e.sourceSlot - 1;
+          const target = aim >= 1 && aim <= 4 ? cardAt(spec, e.side, aim) : undefined;
           if (e.type === 'fizzle') {
-            expect(e.reason).toBe(target === undefined ? 'no-slot' : target === null ? 'empty-slot' : 'no-value');
+            expect(e.target).toBe(effect.target);
+            expect(e.targetSlot).toBe(target === undefined ? null : aim);
+            if (target === undefined || target === null) expect(e.reason).toBe(target === undefined ? 'no-slot' : 'empty-slot');
+            else expect(['no-value', 'already-refired']).toContain(e.reason);
             continue;
           }
-          if (source === null || target === null || target === undefined) throw new Error('grow needs a source and a next card');
-          expect([e.targetSlot, e.targetCardId]).toEqual([e.slot + 1, target.id]);
+          if (source === null || source === undefined || target === null || target === undefined) throw new Error(`${e.type} needs a source and a target`);
+          expect([e.targetSlot, e.targetCardId]).toEqual([aim, target.id]);
+          if (e.type === 'refire') continue;
           expect(e.amount).toBe(cardValue({ cardId: source.id, level: source.level, growth: source.growth }));
           // The scene shows the moment after growth landed: the target already carries it.
           expect(e.valueAfter).toBe(cardValue({ cardId: target.id, level: target.level, growth: target.growth }));

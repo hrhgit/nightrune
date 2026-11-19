@@ -21,7 +21,12 @@ export type Effect =
   /** Cancels that much of the opposing attack in the same slot only (R-08). */
   | { readonly kind: 'block'; readonly amount: LevelValues }
   /** Growth (R-14) on the target card for the rest of the battle; the target is chosen by R-12. */
-  | { readonly kind: 'grow'; readonly target: 'next'; readonly amount: LevelValues };
+  | { readonly kind: 'grow'; readonly target: 'next'; readonly amount: LevelValues }
+  /** Re-fires the target card once, in the current slot (R-13); the target is chosen by R-12. No value of its own. */
+  | { readonly kind: 'refire'; readonly target: 'previous' };
+
+/** R-12: which neighbour a targeted effect aims at. */
+export type TargetSide = 'next' | 'previous';
 
 export interface CardDef {
   readonly name: string;
@@ -112,7 +117,9 @@ export type FizzleReason =
   /** The target slot is empty. */
   | 'empty-slot'
   /** The target card has no value that can change. */
-  | 'no-value';
+  | 'no-value'
+  /** R-13: the target card was already re-fired this round. */
+  | 'already-refired';
 
 export type EndReason = 'enemy-defeated' | 'player-defeated' | 'both-defeated' | 'round-limit';
 
@@ -159,13 +166,17 @@ export type GameEvent =
       readonly hpAfter: number;
     }
   | {
-      /** R-14: the card in `slot` gave the card in `targetSlot` growth; `valueAfter` is its new value. */
+      /**
+       * R-14: the card in `sourceSlot` gave the card in `targetSlot` growth; `valueAfter` is its new value.
+       * `slot` is the slot the cursor is on; it differs from `sourceSlot` when the grow card was re-fired (R-13).
+       */
       readonly type: 'grow';
       readonly round: number;
       readonly slot: number;
       readonly side: Owner;
       readonly uid: string;
       readonly cardId: string;
+      readonly sourceSlot: number;
       readonly targetSlot: number;
       readonly targetUid: string;
       readonly targetCardId: string;
@@ -173,13 +184,30 @@ export type GameEvent =
       readonly valueAfter: number;
     }
   | {
-      /** R-12: the effect of the card in `slot` had no target and did nothing. */
+      /** R-13: the card in `sourceSlot` re-fires the card in `targetSlot`; its effect counts in `slot`. */
+      readonly type: 'refire';
+      readonly round: number;
+      readonly slot: number;
+      readonly side: Owner;
+      readonly uid: string;
+      readonly cardId: string;
+      readonly sourceSlot: number;
+      readonly targetSlot: number;
+      readonly targetUid: string;
+      readonly targetCardId: string;
+    }
+  | {
+      /** R-12, R-13: the effect of the card in `sourceSlot` had no valid target and did nothing. */
       readonly type: 'fizzle';
       readonly round: number;
       readonly slot: number;
       readonly side: Owner;
       readonly uid: string;
       readonly cardId: string;
+      readonly sourceSlot: number;
+      readonly target: TargetSide;
+      /** The slot it aimed at; null when that slot would be off the line (no wrap-around). */
+      readonly targetSlot: number | null;
       readonly reason: FizzleReason;
     }
   | {

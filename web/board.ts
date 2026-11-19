@@ -48,7 +48,7 @@ const PHASE = { bolt: 0.28, through: 0.5 } as const;
 
 /** A block or damage event from the engine, and how far through its animation it is. */
 export interface Impact {
-  readonly event: Extract<GameEvent, { type: 'damage' } | { type: 'block' } | { type: 'grow' } | { type: 'fizzle' }>;
+  readonly event: Extract<GameEvent, { type: 'damage' } | { type: 'block' } | { type: 'grow' } | { type: 'refire' } | { type: 'fizzle' }>;
   /** 0 when the event fired, 1 when its marks are gone. */
   readonly age: number;
 }
@@ -57,7 +57,8 @@ export interface StoneLook {
   readonly name: string;
   readonly direction: keyof typeof DIRECTION_GLOW;
   readonly cost: number | null;
-  readonly value: number;
+  /** Null for a card with no value (Echo): no medallion is drawn. */
+  readonly value: number | null;
   readonly level: number;
 }
 
@@ -596,25 +597,28 @@ export function drawStone(
     ctx.fillText(look.name, x + w / 2, y + h - h * 0.1);
 
     // Value in a carved medallion, top right, ringed in the direction color.
-    const mr = h * 0.15;
-    const mx = x + w - mr - 6;
-    const my = y + mr + 6;
-    const mg = ctx.createRadialGradient(mx - mr * 0.3, my - mr * 0.3, 1, mx, my, mr);
-    mg.addColorStop(0, '#2B3140');
-    mg.addColorStop(1, '#171B26');
-    ctx.fillStyle = mg;
-    ctx.beginPath();
-    ctx.arc(mx, my, mr, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = edge;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.fillStyle = mix(PALETTE.text, edge, 0.35);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `700 ${Math.round(h * 0.18)}px "Alegreya", serif`;
-    ctx.fillText(String(look.value), mx, my + 1);
-    ctx.textBaseline = 'alphabetic';
+    // A card with no value (Echo) has no medallion.
+    if (look.value !== null) {
+      const mr = h * 0.15;
+      const mx = x + w - mr - 6;
+      const my = y + mr + 6;
+      const mg = ctx.createRadialGradient(mx - mr * 0.3, my - mr * 0.3, 1, mx, my, mr);
+      mg.addColorStop(0, '#2B3140');
+      mg.addColorStop(1, '#171B26');
+      ctx.fillStyle = mg;
+      ctx.beginPath();
+      ctx.arc(mx, my, mr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = edge;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = mix(PALETTE.text, edge, 0.35);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `700 ${Math.round(h * 0.18)}px "Alegreya", serif`;
+      ctx.fillText(String(look.value), mx, my + 1);
+      ctx.textBaseline = 'alphabetic';
+    }
 
     // Cost, top left, as amber gems.
     if (look.cost !== null) {
@@ -1032,19 +1036,20 @@ export function drawBoard(ctx: CanvasRenderingContext2D, scene: Scene): void {
 }
 
 /**
- * R-12, R-14 feedback, from the engine's grow and fizzle events: a spark runs from the source stone
- * to the next one and "+N" rises over it; a fizzled effect shows "fizzles" under its stone.
+ * R-12, R-13, R-14 feedback, from the engine's grow, re-fire and fizzle events: a spark runs from the
+ * source stone to its target and a label rises over the target ("+N" for growth, "again" for a
+ * re-fire); a fizzled effect shows "fizzles" under its stone.
  */
 function drawGrowth(ctx: CanvasRenderingContext2D, impacts: readonly Impact[], motion: boolean): void {
-  const glow = DIRECTION_GLOW.growth;
   for (const { event: e, age } of impacts) {
-    if (e.type !== 'grow' && e.type !== 'fizzle') continue;
+    if (e.type !== 'grow' && e.type !== 'refire' && e.type !== 'fizzle') continue;
     const fade = motion ? 1 - window01(age, 0.7, 1) : 1;
-    const from = slotX(e.side, e.slot);
+    const from = slotX(e.side, e.sourceSlot);
     if (e.type === 'fizzle') {
       strikeLabel(ctx, 'fizzles', from, LINE_Y + 4, PALETTE.text, 19, fade, 0);
       continue;
     }
+    const glow = e.type === 'grow' ? DIRECTION_GLOW.growth : DIRECTION_GLOW.flow;
     const to = slotX(e.side, e.targetSlot);
     const t = motion ? Math.min(1, age / 0.25) : 1;
     const top = LINE_Y - SLOT_STONE.h / 2;
@@ -1058,6 +1063,7 @@ function drawGrowth(ctx: CanvasRenderingContext2D, impacts: readonly Impact[], m
     ctx.quadraticCurveTo((from + to) / 2, top - 26, from + (to - from) * t, top + 4 - Math.sin(Math.PI * t) * 15 * (1 - t));
     ctx.stroke();
     ctx.restore();
-    if (t >= 1) strikeLabel(ctx, `+${e.amount}`, to, top - 6 - (motion ? 10 * window01(age, 0.25, 1) : 0), glow, 22, fade, motion ? 1 - window01(age, 0.25, 0.4) : 0);
+    const label = e.type === 'grow' ? `+${e.amount}` : 'again';
+    if (t >= 1) strikeLabel(ctx, label, to, top - 6 - (motion ? 10 * window01(age, 0.25, 1) : 0), glow, 22, fade, motion ? 1 - window01(age, 0.25, 0.4) : 0);
   }
 }

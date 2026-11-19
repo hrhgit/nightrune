@@ -7,6 +7,6 @@ export const STARTER_DECK: readonly CardId[] = [
   'slash', 'slash', 'slash', 'slash',
   'parry', 'parry', 'parry',
   'whetstone',
-  'slash', // stand-in for Echo (T05)
+  'echo',
   'slash', // stand-in for Scout (T08)
 ];
