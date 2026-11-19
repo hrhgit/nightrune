@@ -9,6 +9,7 @@
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
+import { withoutHome } from './record.ts';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { areaOf, criteria, outside, type Ticket } from './ticket.ts';
@@ -263,7 +264,7 @@ async function work(t: Ticket): Promise<void> {
     stalled: false,
     stoppedBy: null,
   };
-  const record: Record<string, unknown> = { run: runId, issue: t.number, title: t.title, criteria: crit.length, area: areaName, startedAt: startedAt.toISOString() };
+  const record: Record<string, unknown> = { run: runId, issue: t.number, title: t.title, criteria: crit.length, area: areaName, executor: null, model: null, implementAttempts: 0, reviewRounds: 0, pr: null, startedAt: startedAt.toISOString() };
   if (!facts.ticketOk || area === undefined) return finish(t, facts, record, null, '');
 
   try {
@@ -287,7 +288,7 @@ async function work(t: Ticket): Promise<void> {
     must('git', ['worktree', 'add', '-B', branch, dir, 'origin/main']);
     const base = must('git', ['rev-parse', 'origin/main']).trim();
     record.base = base;
-    note('worktree', { dir, branch, base: record.base });
+    note('worktree', { dir: dir.replace(homedir(), '~'), branch, base: record.base }); // records are public: no home path
     must('npm', ['ci', '--no-audit', '--no-fund'], { cwd: dir, timeoutMin: 15 });
 
     // Implement, then retry on failed checks, up to the limit.
@@ -413,7 +414,7 @@ function finish(t: Ticket, facts: RunFacts, record: Record<string, unknown>, prU
     findingsForHuman: forHuman(facts.findings).map((f) => f.title),
     events,
   };
-  writeFileSync(file, `${JSON.stringify(out, null, 2)}\n`);
+  writeFileSync(file, withoutHome(`${JSON.stringify(out, null, 2)}\n`, homedir()));
   note('verdict', { verdict: j.verdict, reasons: j.reasons, record: file });
   const comment = `**Factory verdict: ${j.verdict}** (run \`${runId}\`)
 
@@ -421,12 +422,12 @@ ${j.reasons.length ? j.reasons.map((r) => `- ${r}`).join('\n') : '- all gates me
 ${prUrl ? `\nPR: ${prUrl}` : ''}${checkOutput ? `\n\n<details><summary>End of npm run check</summary>\n\n\`\`\`\n${checkOutput}\n\`\`\`\n</details>` : ''}${!prUrl && report ? `\n\n<details><summary>Agent's report</summary>\n\n${report}\n</details>` : ''}
 
 The verdict is computed by \`factory/verdict.ts\` from the checks and the review. A person decides whether to merge.`;
-  const commented = run('gh', ['issue', 'comment', String(t.number), '--repo', CFG.repo, '--body-file', '-'], { input: comment });
+  const commented = run('gh', ['issue', 'comment', String(t.number), '--repo', CFG.repo, '--body-file', '-'], { input: withoutHome(comment, homedir()) });
   const labelled = relabel(t.number, [j.verdict === 'READY' ? CFG.labels.done : CFG.labels.help], [CFG.labels.working, CFG.labels.trigger]);
   const githubErrors = [commented.status === 0 ? null : `gh issue comment failed: ${(commented.stderr || commented.stdout).trim().slice(-300)}`, labelled].filter((x) => x !== null);
   if (githubErrors.length > 0) {
     // The verdict stands, but the issue does not show it; say so in the record and fail the process.
-    writeFileSync(file, `${JSON.stringify({ ...out, githubErrors }, null, 2)}\n`);
+    writeFileSync(file, withoutHome(`${JSON.stringify({ ...out, githubErrors }, null, 2)}\n`, homedir()));
     note('github update failed', githubErrors);
     process.exitCode = 1;
   }

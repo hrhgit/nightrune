@@ -1,0 +1,187 @@
+{
+  "run": "2026-11-19T08-28-02-489Z",
+  "issue": 25,
+  "title": "Card and enemy tables are checked when the engine loads (N-1, N-2)",
+  "criteria": 10,
+  "area": "engine",
+  "startedAt": "2026-11-19T08:28:02.489Z",
+  "executor": "codex",
+  "model": "gpt-6-luna (high)",
+  "base": "c7a52febf177605f5fa49c9a21ff679f14ade60d",
+  "implementAttempts": 1,
+  "pr": "https://github.com/hrhgit/nightrune/pull/29",
+  "reviewRounds": 2,
+  "finishedAt": "2026-11-19T08:42:53.211Z",
+  "verdict": "NEEDS_HUMAN",
+  "reasons": [
+    "agent asked: # Factory question\n\nQodo finding `02d7b88a-fea9-4ebf-813f-883f84ba2edd` is confirmed: `web/scenes.ts` sets the enemy Slash in `partial-block` to level 3 and all four enemy Dummy Swings in `full-lines` to level 3, which conflicts with `R-17.5` (enemy cards are always level 1). The current `tests/scenes.test.ts` does not check enemy preview levels.\n\nThe requested fix and test need a change in `web/scenes.ts` and `tests/scenes.test.ts`. The run's allowed-file list excludes `web/`, so these instructions conflict. Should the scope be expanded to allow fixing the preview definitions, or should this finding be deferred to a web-scoped run?",
+    "open remediation_recommended finding: Scene previews show impossible enemy levels"
+  ],
+  "facts": {
+    "ticketOk": true,
+    "question": "# Factory question\n\nQodo finding `02d7b88a-fea9-4ebf-813f-883f84ba2edd` is confirmed: `web/scenes.ts` sets the enemy Slash in `partial-block` to level 3 and all four enemy Dummy Swings in `full-lines` to level 3, which conflicts with `R-17.5` (enemy cards are always level 1). The current `tests/scenes.test.ts` does not check enemy preview levels.\n\nThe requested fix and test need a change in `web/scenes.ts` and `tests/scenes.test.ts`. The run's allowed-file list excludes `web/`, so these instructions conflict. Should the scope be expanded to allow fixing the preview definitions, or should this finding be deferred to a web-scoped run?",
+    "outsideArea": [],
+    "emptyChange": false,
+    "checksPassed": true,
+    "review": {
+      "status": "completed",
+      "commitSha": "0d7a6292830ede5473ebadcbf32aca89b056115c"
+    },
+    "headSha": "0d7a6292830ede5473ebadcbf32aca89b056115c",
+    "findings": [
+      {
+        "id": "02d7b88a-fea9-4ebf-813f-883f84ba2edd",
+        "title": "Scene previews show impossible enemy levels",
+        "action_level": "remediation_recommended",
+        "attribution_status": "pending"
+      },
+      {
+        "id": "6006e2b8-0d69-412b-925f-c0e5bf4eeeed",
+        "title": "Card costs above three fail to compile",
+        "action_level": "remediation_recommended",
+        "attribution_status": "implemented"
+      },
+      {
+        "id": "8d72bbcc-ce6f-42cf-aa88-346e55b73cec",
+        "title": "Invalid numbers lose their value in errors",
+        "action_level": "remediation_recommended",
+        "attribution_status": "implemented"
+      }
+    ],
+    "attempts": 2,
+    "maxAttempts": 3,
+    "stalled": false,
+    "stoppedBy": null
+  },
+  "findingsForHuman": [],
+  "events": [
+    {
+      "at": "2026-11-19T08:28:03.228Z",
+      "step": "ticket",
+      "detail": {
+        "number": 25,
+        "title": "Card and enemy tables are checked when the engine loads (N-1, N-2)",
+        "labels": [
+          "ready-for-agent",
+          "area:engine"
+        ]
+      }
+    },
+    {
+      "at": "2026-11-19T08:28:05.760Z",
+      "step": "worktree",
+      "detail": {
+        "dir": "~/.nightrune-factory/issue-25",
+        "branch": "agent/issue-25",
+        "base": "c7a52febf177605f5fa49c9a21ff679f14ade60d"
+      }
+    },
+    {
+      "at": "2026-11-19T08:28:07.329Z",
+      "step": "agent start",
+      "detail": {
+        "executor": "codex",
+        "chars": 3897
+      }
+    },
+    {
+      "at": "2026-11-19T08:33:33.407Z",
+      "step": "agent end",
+      "detail": {
+        "exit": 0,
+        "reportChars": 1031
+      }
+    },
+    {
+      "at": "2026-11-19T08:33:53.075Z",
+      "step": "checks",
+      "detail": {
+        "attempt": 1,
+        "passed": true,
+        "outside": []
+      }
+    },
+    {
+      "at": "2026-11-19T08:34:03.800Z",
+      "step": "pr",
+      "detail": "https://github.com/hrhgit/nightrune/pull/29"
+    },
+    {
+      "at": "2026-11-19T08:36:57.725Z",
+      "step": "review",
+      "detail": {
+        "status": "completed",
+        "commit": "a88753f72763311b43e84c8491cc7d123eb39c75",
+        "head": "a88753f72763311b43e84c8491cc7d123eb39c75",
+        "findings": 3
+      }
+    },
+    {
+      "at": "2026-11-19T08:36:57.726Z",
+      "step": "agent start",
+      "detail": {
+        "executor": "codex",
+        "chars": 3077
+      }
+    },
+    {
+      "at": "2026-11-19T08:39:00.457Z",
+      "step": "agent end",
+      "detail": {
+        "exit": 0,
+        "reportChars": 638
+      }
+    },
+    {
+      "at": "2026-11-19T08:39:00.589Z",
+      "step": "after fix round",
+      "detail": {
+        "round": 1,
+        "next": "review"
+      }
+    },
+    {
+      "at": "2026-11-19T08:39:17.428Z",
+      "step": "checks",
+      "detail": {
+        "round": 1,
+        "passed": true,
+        "outside": []
+      }
+    },
+    {
+      "at": "2026-11-19T08:41:56.323Z",
+      "step": "review",
+      "detail": {
+        "status": "completed",
+        "commit": "0d7a6292830ede5473ebadcbf32aca89b056115c",
+        "head": "0d7a6292830ede5473ebadcbf32aca89b056115c",
+        "findings": 3
+      }
+    },
+    {
+      "at": "2026-11-19T08:41:56.324Z",
+      "step": "agent start",
+      "detail": {
+        "executor": "codex",
+        "chars": 1830
+      }
+    },
+    {
+      "at": "2026-11-19T08:42:53.189Z",
+      "step": "agent end",
+      "detail": {
+        "exit": 0,
+        "reportChars": 744
+      }
+    },
+    {
+      "at": "2026-11-19T08:42:53.210Z",
+      "step": "after fix round",
+      "detail": {
+        "round": 2,
+        "next": "stop"
+      }
+    }
+  ]
+}
