@@ -2,21 +2,25 @@
 // every card exists, and every damage or block label matches what R-08 would give for the cards
 // in that slot, so a preview never shows a moment the rules cannot produce.
 import { describe, expect, it } from 'vitest';
-import { cardDef, type Level, type Owner } from '../engine/index.ts';
+import { cardDef, cardValue, type Level, type Owner } from '../engine/index.ts';
 import { SCENES, type CardRef, type SceneSpec } from '../web/scenes.ts';
 
-function card(ref: CardRef | null | undefined): { id: string; level: Level } | null {
+function card(ref: CardRef | null | undefined): { id: string; level: Level; growth: number } | null {
   if (ref === null || ref === undefined) return null;
-  return typeof ref === 'string' ? { id: ref, level: 1 } : { id: ref[0], level: ref[1] };
+  return typeof ref === 'string' ? { id: ref, level: 1, growth: 0 } : { id: ref[0], level: ref[1], growth: ref[2] ?? 0 };
+}
+
+function cardAt(spec: SceneSpec, side: Owner, slot: number): { id: string; level: Level; growth: number } | null {
+  return card((side === 'player' ? spec.playerLine : spec.enemyLine)[slot - 1]);
 }
 
 /** Attack and block of the card in a slot, from the card table through the engine. */
 function power(spec: SceneSpec, side: Owner, slot: number): { attack: number; block: number } {
-  const c = card((side === 'player' ? spec.playerLine : spec.enemyLine)[slot - 1]);
+  const c = cardAt(spec, side, slot);
   if (c === null) return { attack: 0, block: 0 };
-  const effect = cardDef(c.id).effect;
-  const value = effect.amount[c.level - 1] ?? 0;
-  return { attack: effect.kind === 'attack' ? value : 0, block: effect.kind === 'block' ? value : 0 };
+  const kind = cardDef(c.id).effect.kind;
+  const value = cardValue({ cardId: c.id, level: c.level, growth: c.growth });
+  return { attack: kind === 'attack' ? value : 0, block: kind === 'block' ? value : 0 };
 }
 
 const other = (side: Owner): Owner => (side === 'player' ? 'enemy' : 'player');
@@ -53,11 +57,30 @@ describe('scene preview definitions', () => {
             expect(e.incoming).toBe(incoming);
             expect(e.blocked).toBe(Math.min(incoming, power(spec, e.side, e.slot).block));
             expect(e.blocked).toBeGreaterThan(0);
-          } else {
+          } else if (e.type === 'damage') {
             const hit = power(spec, other(e.target), e.slot).attack - power(spec, e.target, e.slot).block;
             expect(e.amount).toBe(Math.max(0, hit));
             expect(e.amount).toBeGreaterThan(0);
           }
+        }
+      });
+
+      it('R-12 R-14: grow and fizzle marks match the cards on the line', () => {
+        for (const { event: e } of spec.impacts ?? []) {
+          if (e.type !== 'grow' && e.type !== 'fizzle') continue;
+          const source = cardAt(spec, e.side, e.slot);
+          expect(source?.id).toBe(e.cardId);
+          expect(cardDef(e.cardId).effect.kind).toBe('grow');
+          const target = e.slot < 4 ? cardAt(spec, e.side, e.slot + 1) : undefined;
+          if (e.type === 'fizzle') {
+            expect(e.reason).toBe(target === undefined ? 'no-slot' : target === null ? 'empty-slot' : 'no-value');
+            continue;
+          }
+          if (source === null || target === null || target === undefined) throw new Error('grow needs a source and a next card');
+          expect([e.targetSlot, e.targetCardId]).toEqual([e.slot + 1, target.id]);
+          expect(e.amount).toBe(cardValue({ cardId: source.id, level: source.level, growth: source.growth }));
+          // The scene shows the moment after growth landed: the target already carries it.
+          expect(e.valueAfter).toBe(cardValue({ cardId: target.id, level: target.level, growth: target.growth }));
         }
       });
 

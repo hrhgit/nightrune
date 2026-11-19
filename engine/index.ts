@@ -1,5 +1,6 @@
 export {
   cardDef,
+  cardValue,
   checkPlace,
   createBattle,
   enemyDef,

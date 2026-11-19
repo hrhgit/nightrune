@@ -6,7 +6,7 @@ import type { CardId } from './cards.ts';
 export const STARTER_DECK: readonly CardId[] = [
   'slash', 'slash', 'slash', 'slash',
   'parry', 'parry', 'parry',
-  'slash', // stand-in for Whetstone (T04)
+  'whetstone',
   'slash', // stand-in for Echo (T05)
   'slash', // stand-in for Scout (T08)
 ];

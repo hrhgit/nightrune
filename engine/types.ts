@@ -19,7 +19,9 @@ export type Effect =
   /** Damage to the opposing card's side in the same slot. */
   | { readonly kind: 'attack'; readonly amount: LevelValues }
   /** Cancels that much of the opposing attack in the same slot only (R-08). */
-  | { readonly kind: 'block'; readonly amount: LevelValues };
+  | { readonly kind: 'block'; readonly amount: LevelValues }
+  /** Growth (R-14) on the target card for the rest of the battle; the target is chosen by R-12. */
+  | { readonly kind: 'grow'; readonly target: 'next'; readonly amount: LevelValues };
 
 export interface CardDef {
   readonly name: string;
@@ -42,6 +44,8 @@ export interface CardInstance {
   readonly uid: string;
   readonly cardId: string;
   readonly level: Level;
+  /** Growth added to the card's value for the rest of the battle (R-14). Stays with this instance. */
+  readonly growth: number;
 }
 
 export type Slot = CardInstance | null;
@@ -101,6 +105,15 @@ export class EngineError extends Error {
   }
 }
 
+/** R-12: why a targeted effect fizzled. */
+export type FizzleReason =
+  /** The target would be past the end of the line (no wrap-around in v0). */
+  | 'no-slot'
+  /** The target slot is empty. */
+  | 'empty-slot'
+  /** The target card has no value that can change. */
+  | 'no-value';
+
 export type EndReason = 'enemy-defeated' | 'player-defeated' | 'both-defeated' | 'round-limit';
 
 export type GameEvent =
@@ -144,6 +157,30 @@ export type GameEvent =
       readonly target: Owner;
       readonly amount: number;
       readonly hpAfter: number;
+    }
+  | {
+      /** R-14: the card in `slot` gave the card in `targetSlot` growth; `valueAfter` is its new value. */
+      readonly type: 'grow';
+      readonly round: number;
+      readonly slot: number;
+      readonly side: Owner;
+      readonly uid: string;
+      readonly cardId: string;
+      readonly targetSlot: number;
+      readonly targetUid: string;
+      readonly targetCardId: string;
+      readonly amount: number;
+      readonly valueAfter: number;
+    }
+  | {
+      /** R-12: the effect of the card in `slot` had no target and did nothing. */
+      readonly type: 'fizzle';
+      readonly round: number;
+      readonly slot: number;
+      readonly side: Owner;
+      readonly uid: string;
+      readonly cardId: string;
+      readonly reason: FizzleReason;
     }
   | {
       readonly type: 'battle-end';

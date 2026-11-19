@@ -27,9 +27,9 @@ declare global {
 }
 
 function instance(ref: CardRef, uid: string): CardInstance {
-  const [cardId, level]: readonly [string, Level] = typeof ref === 'string' ? [ref, 1] : ref;
+  const [cardId, level, growth = 0]: readonly [string, Level, number?] = typeof ref === 'string' ? [ref, 1] : ref;
   cardDef(cardId); // throws on an unknown id
-  return { uid, cardId, level };
+  return { uid, cardId, level, growth };
 }
 
 function line(spec: SceneSpec, side: Owner): Slot[] {

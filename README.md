@@ -18,7 +18,7 @@ One battle against the Training Dummy is playable in the browser and from the co
 - `web/scene.html` – the scene preview page; `scripts/scenes.ts` screenshots it headless (see below).
 - `tests/` – rule tests (each names its rule id from [RULES.md](RULES.md)), seed and invariant tests over 200 seeded games, and tests that prove the lint guardrails fire.
 
-Cards: Slash (attack) and Parry (blocks the attack in its own slot). The starter deck is 7 Slash + 3 Parry; Slash stands in for Whetstone, Echo and Scout until they exist.
+Cards: Slash (attack), Parry (blocks the attack in its own slot) and Whetstone (gives the next card +1 for the rest of the battle). The starter deck is 6 Slash + 3 Parry + 1 Whetstone; Slash stands in for Echo and Scout until they exist.
 
 Not built yet: the other cards, merging, three-battle runs. See [RULES.md](RULES.md) for the status of every rule.
 

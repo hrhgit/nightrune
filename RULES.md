@@ -51,9 +51,9 @@ Status: **done** = implemented and tested; **partial** = implemented in part (se
 
 | Id | Rule | Status |
 |---|---|---|
-| R-12 | An effect may target the next or the previous card. If the target slot is empty, or the target has no value that can change, the effect fizzles; it does not skip to a farther card. In v0 there is no wrap-around: slot 4 has no next card and slot 1 has no previous card. | planned [T04] |
+| R-12 | An effect may target the next or the previous card. If the target slot is empty, or the target has no value that can change, the effect fizzles; it does not skip to a farther card. In v0 there is no wrap-around: slot 4 has no next card and slot 1 has no previous card. | partial: "next" done (Whetstone; attack, block and grow cards have a value that can change); "previous" [T05] |
 | R-13 | Re-fire makes the target's effect happen again in the current slot; the re-fired attack and block count toward the current slot's head-to-head resolution. A card can be re-fired at most once per round. | planned [T05] |
-| R-14 | Boosts come in two kinds. A temporary boost lasts for the current round. Growth lasts for the rest of the battle and is cleared after it. Growth is stored on the boosted card and stays with it if it is replaced, discarded, drawn again and placed again within the battle. | planned [T04] |
+| R-14 | Boosts come in two kinds. A temporary boost lasts for the current round. Growth lasts for the rest of the battle and is cleared after it. Growth is stored on the boosted card and stays with it if it is replaced, discarded, drawn again and placed again within the battle. | partial: growth done (Whetstone); temporary boosts not built; clearing after the battle waits for multi-battle runs |
 
 ## Merging
 

@@ -17,6 +17,13 @@ export const CARDS = {
     owner: 'player',
     effect: { kind: 'block', amount: [4, 6, 9] },
   },
+  whetstone: {
+    name: 'Whetstone',
+    direction: 'growth',
+    cost: 1,
+    owner: 'player',
+    effect: { kind: 'grow', target: 'next', amount: [1, 2, 3] },
+  },
   'dummy-swing': {
     name: 'Straw Swing',
     direction: 'attack',

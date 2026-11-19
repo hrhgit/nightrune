@@ -92,6 +92,8 @@ interface App {
   /** HP shown before the latest hit on each side, so the bar can show what was just lost. */
   hpBefore: Record<Owner, number | null>;
   maxHp: Record<Owner, number>;
+  /** Card values shown while a round animates, taken from grow event payloads (by uid). */
+  shownValue: Map<string, number>;
 }
 
 let app: App;
@@ -117,6 +119,7 @@ function startGame(seed: number): void {
     impacts: [],
     hpBefore: { player: null, enemy: null },
     maxHp: { player: opening.state.player.hp, enemy: opening.state.enemy.hp },
+    shownValue: new Map(),
   };
   seedInput.value = String(seed);
   seedError.textContent = '';
@@ -329,6 +332,8 @@ function buildBeats(events: readonly GameEvent[], motion: boolean): Beat[] {
         pre.push(e);
         break;
       case 'trigger':
+      case 'grow':
+      case 'fizzle':
       case 'block':
       case 'damage': {
         const lastSlot: number = current?.slot ?? 0;
@@ -415,7 +420,9 @@ function enterBeat(beat: Beat, now: number): void {
       app.shownHp[e.target] = e.hpAfter;
     }
     // Shown with or without motion: reduced motion removes movement (see drawStrikes), not information.
-    if (e.type === 'damage' || e.type === 'block') app.impacts.push({ event: e, born: now });
+    // R-14: the grown card shows its new value from the event, as HP does; the UI adds nothing.
+    if (e.type === 'grow') app.shownValue.set(e.targetUid, e.valueAfter);
+    if (e.type === 'damage' || e.type === 'block' || e.type === 'grow' || e.type === 'fizzle') app.impacts.push({ event: e, born: now });
   }
   appendLog(beat.events);
   announce();
@@ -431,6 +438,7 @@ function finishAnimation(): void {
   }
   app.anim = null;
   app.state = anim.after;
+  app.shownValue = new Map();
   app.shownHp = { player: anim.after.player.hp, enemy: anim.after.enemy.hp };
   app.cursor = null;
   app.firing = new Map();
@@ -498,7 +506,11 @@ function draw(now: number): void {
     enemyName: enemyDef(ENEMY_ID).name,
     hp: { player: hp('player'), enemy: hp('enemy') },
     lines: { player: app.state.player.line, enemy: app.state.enemy.line },
-    look,
+    look: (card) => {
+      const shown = app.shownValue.get(card.uid);
+      const base = look(card);
+      return shown === undefined ? base : { ...base, value: shown };
+    },
     cursor: app.cursor,
     firing: app.firing,
     targets,

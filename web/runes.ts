@@ -35,6 +35,26 @@ export const RUNES: Readonly<Record<string, readonly RuneStroke[]>> = {
       [0.3, -0.15],
     ],
   ],
+  // A whetstone: a slanted slab, with a chevron pointing right at the next stone.
+  whetstone: [
+    [
+      [-0.7, 0.55],
+      [-0.35, 0.2],
+      [0.45, 0.2],
+      [0.1, 0.55],
+      [-0.7, 0.55],
+    ],
+    [
+      [-0.35, -0.65],
+      [0.2, -0.25],
+      [-0.35, 0.05],
+    ],
+    [
+      [0.1, -0.65],
+      [0.65, -0.25],
+      [0.1, 0.05],
+    ],
+  ],
   // A straw flail: a stem with a hooked head.
   'dummy-swing': [
     [
