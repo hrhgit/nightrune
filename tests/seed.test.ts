@@ -75,7 +75,7 @@ function checkInvariants(state: BattleState, deckSize: number): void {
   expect(state.enemy.hp).toBeGreaterThanOrEqual(0);
 }
 
-describe('I-1 I-4 invariants over 200 seeded greedy games', () => {
+describe('I-1 I-3 I-4 I-5 invariants over 200 seeded greedy games', () => {
   it('holds after every action and every game ends within the round limit', () => {
     for (let seed = 0; seed < 200; seed++) {
       let state = createBattle({ enemyId: 'training-dummy', seed });
