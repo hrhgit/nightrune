@@ -80,7 +80,7 @@ export const SCENES: readonly SceneSpec[] = [
   {
     id: 'whetstone-grow',
     title: 'Whetstone grows the next card',
-    look: 'Slot 1 firing: a gold spark runs from the Whetstone to the Slash in slot 2 and "+1" rises over it; the Slash shows 5.',
+    look: 'Slot 1 firing: a gold spark runs from the Whetstone to the Slash in slot 2 and "+1" rises over it; the Slash reads "Deals 5 damage…" with 5 highlighted.',
     seed: 7,
     enemyLine: DUMMY,
     playerLine: ['whetstone', ['slash', 1, 1], null, 'whetstone'],
@@ -110,7 +110,7 @@ export const SCENES: readonly SceneSpec[] = [
   {
     id: 'echo-copy',
     title: 'Echo copies the previous card',
-    look: 'Slot 2 firing: a green arc runs back from the Echo to the Slash in slot 1, "copy" rises over the Slash, and both stones glow. Echo has no value medallion.',
+    look: 'Slot 2 firing: a green arc runs back from the Echo to the Slash in slot 1, "copy" rises over the Slash, and both stones glow. Echo\'s text has no number, so nothing in it is highlighted.',
     seed: 7,
     enemyLine: DUMMY,
     playerLine: ['slash', 'echo', null, null],

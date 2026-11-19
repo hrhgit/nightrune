@@ -21,7 +21,7 @@ import {
   type Owner,
 } from '../engine/index.ts';
 import { parseSeed, SEED_HELP } from '../present/seed.ts';
-import { battleEndText, cardEffectText, cardName, eventText, rejectText } from '../present/text.ts';
+import { battleEndText, cardEffectParts, cardEffectText, cardName, eventText, rejectText } from '../present/text.ts';
 import { BOARD, drawBoard, slotRect, type Impact } from './board.ts';
 import { handCanvas, look, watchHand } from './look.ts';
 
@@ -513,7 +513,7 @@ function draw(now: number): void {
     look: (card) => {
       const shown = app.shownValue.get(card.uid);
       const base = look(card);
-      return shown === undefined ? base : { ...base, value: shown };
+      return shown === undefined ? base : { ...base, effect: cardEffectParts(card, shown) };
     },
     cursor: app.cursor,
     firing: app.firing,

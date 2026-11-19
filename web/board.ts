@@ -7,6 +7,8 @@
 // gets through flies on to the defending figure, which flinches while its HP bar drains.
 // Every number shown comes from an event payload; nothing here adds or subtracts rule values.
 import { nextUint32, type CardInstance, type GameEvent, type Owner, type Slot } from '../engine/index.ts';
+import type { EffectPart } from '../present/text.ts';
+import { cardFaceLayout, layoutCardText } from './card-face.ts';
 import { drawEnemyFigure, drawWayfarer, type Reaction } from './figures.ts';
 import { DIRECTION_GLOW, PALETTE } from './palette.ts';
 import { RUNES } from './runes.ts';
@@ -57,8 +59,8 @@ export interface StoneLook {
   readonly name: string;
   readonly direction: keyof typeof DIRECTION_GLOW;
   readonly cost: number | null;
-  /** Null for a card with no value (Echo): no medallion is drawn. */
-  readonly value: number | null;
+  /** What the card does, from present/text.ts; its value part is drawn in its own weight and color. */
+  readonly effect: readonly EffectPart[];
   readonly level: number;
 }
 
@@ -508,6 +510,9 @@ function drawCostGem(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: n
   ctx.fill();
 }
 
+/** Plain words of a card's effect text: a little dimmer than the name, so the value stands out. */
+const CARD_TEXT_COLOR = mix(PALETTE.text, PALETTE.runeDim, 0.3);
+
 /** Draws one stone (or an empty socket when `card` is null) centred in the given box. */
 export function drawStone(
   ctx: CanvasRenderingContext2D,
@@ -522,6 +527,12 @@ export function drawStone(
   } else {
     const edge = DIRECTION_GLOW[look.direction];
     const key = `stone:${card.uid}`;
+    // Laid out before anything is drawn, so a card with no effect text throws on a clean canvas.
+    const face = cardFaceLayout(box);
+    const text = layoutCardText(look.effect, face.text, (t, font) => {
+      ctx.font = font;
+      return ctx.measureText(t).width;
+    });
 
     // Body with a drop shadow, lit from the top left.
     stoneOutline(ctx, x, y, w, h, key);
@@ -584,41 +595,35 @@ export function drawStone(
     ctx.stroke();
     ctx.restore();
 
+    // Small rune at the top, between the cost gems and the cracked corner.
     const runeColor = mix(PALETTE.runeDim, edge, Math.max(0.22, opts.glow));
-    drawRune(ctx, card.cardId, x + w / 2, y + h / 2 - 6, Math.min(w, h) * 0.25, runeColor, opts.glow);
+    drawRune(ctx, card.cardId, face.rune.cx, face.rune.cy, face.rune.size, runeColor, opts.glow);
+
+    // What the card does, wrapped to the stone. The value is drawn inside the sentence, heavier
+    // and in the direction color; the words come from present/text.ts as they are.
+    ctx.save();
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 2;
+    ctx.shadowOffsetY = 1;
+    for (const line of text.lines) {
+      for (const run of line.runs) {
+        ctx.font = run.font;
+        ctx.fillStyle = run.kind === 'value' ? mix(PALETTE.text, edge, 0.6) : CARD_TEXT_COLOR;
+        ctx.fillText(run.text, run.x, line.baseline);
+      }
+    }
+    ctx.restore();
 
     // Name on a darker band along the bottom.
     ctx.fillStyle = 'rgba(10,12,20,0.35)';
-    ctx.fillRect(x + 8, y + h - h * 0.25, w - 16, h * 0.19);
+    ctx.fillRect(face.nameBand.x, face.nameBand.y, face.nameBand.w, face.nameBand.h);
     ctx.fillStyle = PALETTE.text;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.font = `700 ${Math.round(h * 0.125)}px "Alegreya Sans", sans-serif`;
     ctx.fillText(look.name, x + w / 2, y + h - h * 0.1);
-
-    // Value in a carved medallion, top right, ringed in the direction color.
-    // A card with no value (Echo) has no medallion.
-    if (look.value !== null) {
-      const mr = h * 0.15;
-      const mx = x + w - mr - 6;
-      const my = y + mr + 6;
-      const mg = ctx.createRadialGradient(mx - mr * 0.3, my - mr * 0.3, 1, mx, my, mr);
-      mg.addColorStop(0, '#2B3140');
-      mg.addColorStop(1, '#171B26');
-      ctx.fillStyle = mg;
-      ctx.beginPath();
-      ctx.arc(mx, my, mr, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = edge;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.fillStyle = mix(PALETTE.text, edge, 0.35);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.font = `700 ${Math.round(h * 0.18)}px "Alegreya", serif`;
-      ctx.fillText(String(look.value), mx, my + 1);
-      ctx.textBaseline = 'alphabetic';
-    }
 
     // Cost, top left, as amber gems.
     if (look.cost !== null) {
