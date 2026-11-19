@@ -12,11 +12,11 @@
   "areas": {
     "engine": {
       "executor": "codex",
-      "paths": ["engine/", "data/", "cli/", "bots/", "tests/", "RULES.md", "README.md", "evidence/", "factory/rule-coverage.md", "factory/corrections.md", "factory/lessons.md", "eslint.config.js"]
+      "paths": ["engine/", "data/", "cli/", "bots/", "tests/", "RULES.md", "README.md", "evidence/", "factory/rule-coverage.md", "factory/corrections.md", "eslint.config.js"]
     },
     "web": {
       "executor": "claude",
-      "paths": ["web/", "present/", "scripts/", "tests/", "README.md", "evidence/", "factory/rule-coverage.md", "factory/corrections.md", "factory/lessons.md", "eslint.config.js"]
+      "paths": ["web/", "present/", "scripts/", "tests/", "README.md", "evidence/", "factory/rule-coverage.md", "factory/corrections.md", "eslint.config.js"]
     }
   },
   "executors": {

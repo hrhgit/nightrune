@@ -7,3 +7,11 @@ Mutations of factory/lessons.ts and verdict.ts; each must fail at least one test
 - none needs no reason:       Tests  1 failed | 22 passed (23)
 - verdict ignores lesson problems:       Tests  1 failed | 22 passed (23)
 - Added after Qodo review of PR 32: removing eslint.config.js from the area paths in factory/config.json: 1 test failed in tests/factory-lessons.test.ts (the area check, which loops over both areas)
+Added after Qodo's second review of PR 32 (seven findings); each break of factory/lessons.ts must fail a test in tests/factory-lessons.test.ts:
+- a parse error may pass as a rule:      Tests  1 failed | 14 passed (15)
+- a rule that already fired may be named:      Tests  1 failed | 14 passed (15)
+- the lint config may shrink:      Tests  1 failed | 14 passed (15)
+- malformed entries are accepted unchecked:      Tests  1 failed | 14 passed (15)
+- the lessons log counts against the area:      Tests  1 failed | 14 passed (15)
+- the id no longer has to start a line or be followed by a colon: Tests  1 failed | 14 passed (15)
+- the id may sit anywhere in a line (line-start anchor dropped): Tests  1 failed | 14 passed (15)
