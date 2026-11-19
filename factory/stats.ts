@@ -11,7 +11,8 @@ export interface RunRecord {
   readonly reviewRounds: number;
   readonly startedAt: string;
   readonly finishedAt: string;
-  readonly pr: string | null;
+  /** Absent when the run stopped before opening a PR. */
+  readonly pr?: string | null;
   readonly reasons: readonly string[];
 }
 
@@ -32,7 +33,7 @@ export function stats(runs: readonly RunRecord[]): Record<string, unknown> {
     runs: runs.length,
     byVerdict: count((r) => r.verdict),
     byExecutor: count((r) => `${r.executor} ${r.model}`),
-    prsOpened: runs.filter((r) => r.pr !== null).length,
+    prsOpened: runs.filter((r) => typeof r.pr === 'string').length,
     implementAttempts: runs.reduce((a, r) => a + r.implementAttempts, 0),
     reviewRounds: runs.reduce((a, r) => a + r.reviewRounds, 0),
     minutesPerRun: minutes.map((m) => Math.round(m * 10) / 10),

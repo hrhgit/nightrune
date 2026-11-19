@@ -7,3 +7,5 @@ Full command output of each run is kept locally in `.factory/logs/` (not committ
 `npm run factory:stats` prints the statistics (`factory/stats.ts`). `tests/factory-records.test.ts` checks that every record has a verdict and holds no home folder path or e-mail address.
 
 The first two records (issues 21 and 25) were written before the runner stopped recording its absolute worktree folder. Before they were committed, the home folder in that one field was replaced with `~` by a `sed` command. Nothing else in them was changed.
+
+The record of issue 21 was written before PR #28, when a `NEEDS_HUMAN` verdict listed only the reasons a person was needed. Its `facts` hold the two open findings, but its `reasons` do not list them. Records are kept as the runner wrote them.
