@@ -16,5 +16,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["engine", "data", "cli", "tests", "eslint.config.js"]
+  "include": ["engine", "data", "bots", "present", "cli", "tests", "eslint.config.js", "vite.config.ts", "vitest.config.ts"]
 }

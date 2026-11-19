@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="Nightrune: set runestones on a four-slot battle line and strike head to head. Every battle comes from a seed." />
+    <title>Nightrune</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23161C2B'/%3E%3Cpath d='M10 25 22 7M11 15l5 4M19 9l4 2' stroke='%23FF6A4A' stroke-width='3' stroke-linecap='round' fill='none'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header class="top">
+      <h1>Nightrune</h1>
+      <form id="seed-form" class="seed" novalidate>
+        <label for="seed">Seed</label>
+        <input id="seed" name="seed" inputmode="numeric" autocomplete="off" spellcheck="false" aria-describedby="seed-error" />
+        <button type="submit">Start battle</button>
+        <button type="button" id="new-seed">New seed</button>
+        <p id="seed-error" class="seed-error" role="alert"></p>
+      </form>
+    </header>
+
+    <main class="table">
+      <section class="field" aria-label="Battlefield">
+        <div class="board-wrap">
+          <canvas id="board" role="img" aria-label="The battlefield: the enemy line above, your line below, four slots each."></canvas>
+          <div id="slots" class="slots" role="group" aria-label="Your line"></div>
+          <div id="end" class="end" role="dialog" aria-labelledby="end-title" hidden>
+            <h2 id="end-title"></h2>
+            <p id="end-text"></p>
+            <div class="end-actions">
+              <button type="button" id="replay" class="primary"></button>
+              <button type="button" id="new-seed-end">New seed</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud">
+          <span id="round" class="round"></span>
+          <span id="energy" class="energy"></span>
+          <span id="piles" class="piles"></span>
+        </div>
+
+        <div class="play">
+          <div id="hand" class="hand" role="group" aria-label="Your hand"></div>
+          <button type="button" id="run" class="primary run"></button>
+        </div>
+        <p id="hint" class="hint" aria-live="polite"></p>
+      </section>
+
+      <aside class="log" aria-labelledby="log-title">
+        <h2 id="log-title">Battle log</h2>
+        <ol id="log"></ol>
+      </aside>
+    </main>
+
+    <footer class="foot">
+      <p>
+        Each round, the turn order sweeps slots 1 to 4 and both lines strike at once.
+        <a href="https://github.com/hrhgit/nightrune/blob/main/RULES.md">Read the rules</a> or
+        <a href="https://github.com/hrhgit/nightrune">see the source</a>.
+      </p>
+    </footer>
+    <p id="status" class="visually-hidden" aria-live="polite"></p>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

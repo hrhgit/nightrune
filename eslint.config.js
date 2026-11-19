@@ -38,4 +38,32 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // UI and text code show engine state; they must not compute rules. They reach the rules only
+    // through the engine's public entry point and never read the rule or enemy tables directly.
+    files: ['web/**/*.ts', 'present/**/*.ts', 'cli/**/*.ts', 'bots/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/data/*', '**/engine/*', '!**/engine/index.ts'],
+              message: 'Use the engine public API (engine/index.ts); UI, text, CLI and bots must not read data tables or engine internals.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // Visual randomness comes from the battle seed so the same seed always looks the same.
+    files: ['web/**/*.ts'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        { object: 'Math', property: 'random', message: 'Visual randomness must come from the battle seed.' },
+      ],
+    },
+  },
 );
