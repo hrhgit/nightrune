@@ -27,13 +27,14 @@ interface StoneOptions {
 interface BoardApi {
   drawStone(ctx: unknown, box: Box, card: CardInstance | null, look: StoneLook | null, opts: StoneOptions): void;
   slotRect(side: 'player' | 'enemy', slot: number): Box;
+  clearCardTextCache(): void;
 }
 interface LookApi {
   look(card: CardInstance): StoneLook;
   readonly HAND_STONE_BOX: Box;
 }
 const webModule = (name: string): Promise<unknown> => import(`../web/${name}.ts`);
-const { drawStone, slotRect } = (await webModule('board')) as BoardApi;
+const { drawStone, slotRect, clearCardTextCache } = (await webModule('board')) as BoardApi;
 const { HAND_STONE_BOX, look } = (await webModule('look')) as LookApi;
 
 const IDS = Object.keys(CARDS) as CardId[];
@@ -255,6 +256,35 @@ describe('drawing a stone', () => {
     const gradients = (cost: number | null) => draw(STONES.hand, c, { ...look(c), cost }).calls.get('createLinearGradient') ?? 0;
     expect(gradients(2) - gradients(null)).toBe(2);
     expect(gradients(1) - gradients(null)).toBe(1);
+  });
+
+  it('a stone drawn again with the same text and size reuses its layout: no text is measured', () => {
+    const c = card('parry', 3);
+    const l = look(c);
+    const first = draw(STONES.slot, c, l);
+    const again = draw(STONES.slot, c, l);
+    expect(again.calls.get('measureText') ?? 0).toBe(0);
+    expect(again.drawn).toEqual(first.drawn);
+  });
+
+  it('edge: the reused layout follows the stone when it moves', () => {
+    const c = card('parry', 3);
+    const l = look(c);
+    const at = draw(STONES.slot, c, l);
+    const moved = draw({ ...STONES.slot, x: STONES.slot.x + 40, y: STONES.slot.y - 25 }, c, l);
+    expect(moved.calls.get('measureText') ?? 0).toBe(0);
+    const body = (d: readonly Drawn[]) => d.filter((x) => x.text !== l.name);
+    const round = (d: Drawn) => ({ ...d, x: Math.round(d.x * 1e6) / 1e6, y: Math.round(d.y * 1e6) / 1e6 });
+    expect(body(moved.drawn).map((d) => round({ ...d, x: d.x - 40, y: d.y + 25 }))).toEqual(body(at.drawn).map(round));
+  });
+
+  it('edge: a changed value or a cleared cache (fonts finished loading) lays the text out again', () => {
+    const c = card('slash', 1, 0);
+    draw(STONES.slot, c, look(c));
+    const grown = card('slash', 1, 3);
+    expect(draw(STONES.slot, grown, look(grown)).calls.get('measureText') ?? 0).toBeGreaterThan(0);
+    clearCardTextCache();
+    expect(draw(STONES.slot, c, look(c)).calls.get('measureText') ?? 0).toBeGreaterThan(0);
   });
 
   it('failure: an empty socket draws no text', () => {

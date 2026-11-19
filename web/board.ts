@@ -8,7 +8,7 @@
 // Every number shown comes from an event payload; nothing here adds or subtracts rule values.
 import { nextUint32, type CardInstance, type GameEvent, type Owner, type Slot } from '../engine/index.ts';
 import type { EffectPart } from '../present/text.ts';
-import { cardFaceLayout, layoutCardText } from './card-face.ts';
+import { cardFaceLayout, layoutCardText, type Box, type CardTextLayout } from './card-face.ts';
 import { drawEnemyFigure, drawWayfarer, type Reaction } from './figures.ts';
 import { DIRECTION_GLOW, PALETTE } from './palette.ts';
 import { RUNES } from './runes.ts';
@@ -513,6 +513,42 @@ function drawCostGem(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: n
 /** Plain words of a card's effect text: a little dimmer than the name, so the value stands out. */
 const CARD_TEXT_COLOR = mix(PALETTE.text, PALETTE.runeDim, 0.3);
 
+/**
+ * Effect text layouts by text and stone size, laid out at the origin and moved to the stone when
+ * drawn: the board is redrawn every frame, and wrapping measures the text many times over.
+ * Cleared when web fonts finish loading, since widths measured with a fallback font are wrong.
+ */
+const cardTextCache = new Map<string, CardTextLayout>();
+const CARD_TEXT_CACHE_MAX = 256;
+
+export function clearCardTextCache(): void {
+  cardTextCache.clear();
+}
+if (typeof document !== 'undefined') document.fonts.addEventListener('loadingdone', clearCardTextCache);
+
+function cardText(ctx: CanvasRenderingContext2D, effect: StoneLook['effect'], box: Box): CardTextLayout {
+  const key = `${box.w}x${box.h}|${effect.map((p) => `${p.kind}:${p.text}`).join('\u0000')}`;
+  let rel = cardTextCache.get(key);
+  if (rel === undefined) {
+    const face = cardFaceLayout({ x: 0, y: 0, w: box.w, h: box.h });
+    rel = layoutCardText(effect, face.text, (t, font) => {
+      ctx.font = font;
+      return ctx.measureText(t).width;
+    });
+    if (cardTextCache.size >= CARD_TEXT_CACHE_MAX) cardTextCache.clear();
+    cardTextCache.set(key, rel);
+  }
+  return {
+    ...rel,
+    lines: rel.lines.map((line) => ({
+      ...line,
+      x: line.x + box.x,
+      baseline: line.baseline + box.y,
+      runs: line.runs.map((run) => ({ ...run, x: run.x + box.x })),
+    })),
+  };
+}
+
 /** Draws one stone (or an empty socket when `card` is null) centred in the given box. */
 export function drawStone(
   ctx: CanvasRenderingContext2D,
@@ -529,10 +565,7 @@ export function drawStone(
     const key = `stone:${card.uid}`;
     // Laid out before anything is drawn, so a card with no effect text throws on a clean canvas.
     const face = cardFaceLayout(box);
-    const text = layoutCardText(look.effect, face.text, (t, font) => {
-      ctx.font = font;
-      return ctx.measureText(t).width;
-    });
+    const text = cardText(ctx, look.effect, box);
 
     // Body with a drop shadow, lit from the top left.
     stoneOutline(ctx, x, y, w, h, key);
