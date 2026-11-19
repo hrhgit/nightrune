@@ -1,26 +1,16 @@
 // Human-readable text for engine data, shared by the CLI and the web page.
 // Presentation only: it reads the card table and event payloads and computes no rules.
-import { assertNever, cardDef, enemyDef, type CardInstance, type GameEvent, type RejectReason } from '../engine/index.ts';
+import { assertNever, cardDef, cardValue, enemyDef, type CardInstance, type FizzleReason, type GameEvent, type RejectReason } from '../engine/index.ts';
+
+/** The number printed on a card: table value plus growth, computed by the engine (R-14). */
+export { cardValue };
 
 export function cardName(cardId: string): string {
   return cardDef(cardId).name;
 }
 
-/** The headline number printed on a card at its level, read from the card table. */
-export function cardValue(card: Pick<CardInstance, 'cardId' | 'level'>): number {
-  const effect = cardDef(card.cardId).effect;
-  const kind = effect.kind;
-  switch (kind) {
-    case 'attack':
-    case 'block':
-      return effect.amount[card.level - 1] ?? 0;
-    default:
-      return assertNever(kind);
-  }
-}
-
 /** One-line description of what a card does at its level, read from the card table. */
-export function cardEffectText(card: Pick<CardInstance, 'cardId' | 'level'>): string {
+export function cardEffectText(card: Pick<CardInstance, 'cardId' | 'level' | 'growth'>): string {
   const effect = cardDef(card.cardId).effect;
   const kind = effect.kind;
   switch (kind) {
@@ -28,10 +18,18 @@ export function cardEffectText(card: Pick<CardInstance, 'cardId' | 'level'>): st
       return `Deals ${cardValue(card)} damage to the opposing slot.`;
     case 'block':
       return `Blocks ${cardValue(card)} damage from the opposing slot only.`;
+    case 'grow':
+      return `Gives the next card +${cardValue(card)} for the rest of the battle.`;
     default:
       return assertNever(kind);
   }
 }
+
+const FIZZLE_TEXT: Record<FizzleReason, (slot: number) => string> = {
+  'no-slot': () => 'there is no next slot',
+  'empty-slot': (slot) => `slot ${slot + 1} is empty`,
+  'no-value': (slot) => `the card in slot ${slot + 1} has no value to change`,
+};
 
 const SIDE: Record<'player' | 'enemy', string> = { player: 'You', enemy: 'Enemy' };
 
@@ -59,6 +57,10 @@ export function eventText(e: GameEvent, enemyId: string): string {
       return `Slot ${e.slot}: ${who(e.side)} ${e.side === 'player' ? 'block' : 'blocks'} ${e.blocked} of ${e.incoming} damage.`;
     case 'damage':
       return `Slot ${e.slot}: ${who(e.target)} ${e.target === 'player' ? 'take' : 'takes'} ${e.amount} damage, ${e.hpAfter} HP left.`;
+    case 'grow':
+      return `Slot ${e.slot}: ${cardName(e.cardId)} gives ${cardName(e.targetCardId)} in slot ${e.targetSlot} +${e.amount} for the battle (now ${e.valueAfter}).`;
+    case 'fizzle':
+      return `Slot ${e.slot}: ${cardName(e.cardId)} fizzles: ${FIZZLE_TEXT[e.reason](e.slot)}.`;
     case 'battle-end':
       return battleEndText(e.reason, e.round, enemyName);
     default:

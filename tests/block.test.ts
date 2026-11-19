@@ -21,7 +21,7 @@ function damageTo(events: readonly GameEvent[], target: 'player' | 'enemy', slot
 /** Puts a card on the enemy line by hand, to exercise the shared effect system (R-17). */
 function withEnemyCard(state: BattleState, slot: number, cardId: string, level: Level = 1): BattleState {
   const line = [...state.enemy.line];
-  line[slot - 1] = { uid: `e-test-${slot}`, cardId, level };
+  line[slot - 1] = { uid: `e-test-${slot}`, cardId, level, growth: 0 };
   return { ...state, enemy: { ...state.enemy, line } };
 }
 

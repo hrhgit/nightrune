@@ -29,7 +29,8 @@ describe('R-16 a recorded battle replays to the same final state', () => {
 
   it('pins the hash of seed 7, so a change in the engine or the hash shows up', () => {
     // Recorded with `npm run play -- --seed 7 --record`; the greedy bot wins in round 3 at 18 HP.
-    expect(greedyRecord(7).finalHash).toBe('bb20ce7f39161e47');
+    // Changed from bb20ce7f39161e47 in T04: the starter deck gained Whetstone and cards gained `growth`.
+    expect(greedyRecord(7).finalHash).toBe('da7868cf011d765f');
   });
 
   it('the hash depends on the state values, not on key order', () => {
@@ -75,7 +76,7 @@ describe('R-16 replay command exit codes', () => {
 
   it('0 when the hash matches, 1 on a mismatch or a refused action, 2 on a malformed file', () => {
     const ok = run(good);
-    expect([ok.status, ok.stdout]).toEqual([0, expect.stringContaining('State hash: bb20ce7f39161e47')]);
+    expect([ok.status, ok.stdout]).toEqual([0, expect.stringContaining('State hash: da7868cf011d765f')]);
     expect(run(good, '--expect', '0000000000000000').status).toBe(1);
     const illegal = write('illegal.json', JSON.stringify({ ...greedyRecord(7), actions: [{ type: 'place', uid: 'p99', slot: 1 }], finalHash: undefined }));
     const refused = run(illegal);
@@ -84,7 +85,7 @@ describe('R-16 replay command exit codes', () => {
     expect(run(write('shape.json', '{"seed": 7}')).status).toBe(2);
     expect(run().status).toBe(2);
     // Leftover or repeated options are errors, even when the hash would match (Qodo finding on #14).
-    expect(run(good, '--expect', 'bb20ce7f39161e47', '--expect').status).toBe(2);
+    expect(run(good, '--expect', greedyRecord(7).finalHash ?? '', '--expect').status).toBe(2);
     expect(run(good, good).status).toBe(2);
   }, 30_000);
 

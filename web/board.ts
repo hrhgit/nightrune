@@ -48,7 +48,7 @@ const PHASE = { bolt: 0.28, through: 0.5 } as const;
 
 /** A block or damage event from the engine, and how far through its animation it is. */
 export interface Impact {
-  readonly event: Extract<GameEvent, { type: 'damage' } | { type: 'block' }>;
+  readonly event: Extract<GameEvent, { type: 'damage' } | { type: 'block' } | { type: 'grow' } | { type: 'fizzle' }>;
   /** 0 when the event fired, 1 when its marks are gone. */
   readonly age: number;
 }
@@ -785,6 +785,7 @@ interface Strike {
 function strikesOf(impacts: readonly Impact[]): Strike[] {
   const bySlot = new Map<string, { defender: Owner; slot: number; blocked: number; dealt: number; age: number }>();
   for (const { event: e, age } of impacts) {
+    if (e.type !== 'damage' && e.type !== 'block') continue;
     const defender = e.type === 'damage' ? e.target : e.side;
     const key = `${defender}:${e.slot}`;
     const s = bySlot.get(key) ?? { defender, slot: e.slot, blocked: 0, dealt: 0, age };
@@ -1027,4 +1028,36 @@ export function drawBoard(ctx: CanvasRenderingContext2D, scene: Scene): void {
     drawHp(ctx, side, side === 'player' ? 'You' : scene.enemyName, shown, landed ? (hp.before ?? null) : null, hpLostFade(side, scene.impacts, scene.motion));
   }
   drawStrikes(ctx, strikes, scene.motion);
+  drawGrowth(ctx, scene.impacts, scene.motion);
+}
+
+/**
+ * R-12, R-14 feedback, from the engine's grow and fizzle events: a spark runs from the source stone
+ * to the next one and "+N" rises over it; a fizzled effect shows "fizzles" under its stone.
+ */
+function drawGrowth(ctx: CanvasRenderingContext2D, impacts: readonly Impact[], motion: boolean): void {
+  const glow = DIRECTION_GLOW.growth;
+  for (const { event: e, age } of impacts) {
+    if (e.type !== 'grow' && e.type !== 'fizzle') continue;
+    const fade = motion ? 1 - window01(age, 0.7, 1) : 1;
+    const from = slotX(e.side, e.slot);
+    if (e.type === 'fizzle') {
+      strikeLabel(ctx, 'fizzles', from, LINE_Y + 4, PALETTE.text, 19, fade, 0);
+      continue;
+    }
+    const to = slotX(e.side, e.targetSlot);
+    const t = motion ? Math.min(1, age / 0.25) : 1;
+    const top = LINE_Y - SLOT_STONE.h / 2;
+    ctx.save();
+    ctx.globalAlpha = 0.85 * fade;
+    ctx.strokeStyle = glow;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(from, top + 4);
+    ctx.quadraticCurveTo((from + to) / 2, top - 26, from + (to - from) * t, top + 4 - Math.sin(Math.PI * t) * 15 * (1 - t));
+    ctx.stroke();
+    ctx.restore();
+    if (t >= 1) strikeLabel(ctx, `+${e.amount}`, to, top - 6 - (motion ? 10 * window01(age, 0.25, 1) : 0), glow, 22, fade, motion ? 1 - window01(age, 0.25, 0.4) : 0);
+  }
 }

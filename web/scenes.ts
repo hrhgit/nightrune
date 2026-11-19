@@ -5,10 +5,11 @@
 import type { GameEvent, Level, Owner } from '../engine/index.ts';
 
 /** Events the board animates when a slot fires. */
-export type ImpactEvent = Extract<GameEvent, { type: 'damage' } | { type: 'block' }>;
+export type ImpactEvent = Extract<GameEvent, { type: 'damage' } | { type: 'block' } | { type: 'grow' } | { type: 'fizzle' }>;
 
 /** A card id at level 1, or [card id, level]. */
-export type CardRef = string | readonly [string, Level];
+/** A card id, or [id, level], or [id, level, growth] (R-14). */
+export type CardRef = string | readonly [string, Level] | readonly [string, Level, number];
 type Line = readonly [CardRef | null, CardRef | null, CardRef | null, CardRef | null];
 
 export interface SceneSpec {
@@ -75,6 +76,36 @@ export const SCENES: readonly SceneSpec[] = [
       { side: 'player', slot: 2, glow: 1 },
     ],
     impacts: [{ event: { type: 'block', round: 1, slot: 2, side: 'player', incoming: 3, blocked: 3 }, age: 0.4 }],
+  },
+  {
+    id: 'whetstone-grow',
+    title: 'Whetstone grows the next card',
+    look: 'Slot 1 firing: a gold spark runs from the Whetstone to the Slash in slot 2 and "+1" rises over it; the Slash shows 5.',
+    seed: 7,
+    enemyLine: DUMMY,
+    playerLine: ['whetstone', ['slash', 1, 1], null, 'whetstone'],
+    cursor: 1,
+    firing: [{ side: 'player', slot: 1, glow: 1 }],
+    impacts: [
+      {
+        event: { type: 'grow', round: 1, slot: 1, side: 'player', uid: 'p1', cardId: 'whetstone', targetSlot: 2, targetUid: 'p2', targetCardId: 'slash', amount: 1, valueAfter: 5 },
+        age: 0.5,
+      },
+    ],
+  },
+  {
+    id: 'whetstone-fizzle',
+    title: 'Whetstone in slot 4 fizzles',
+    look: 'Slot 4 firing: "fizzles" across the Whetstone; no spark, nothing wraps around to slot 1.',
+    seed: 7,
+    enemyLine: DUMMY,
+    playerLine: ['slash', null, null, 'whetstone'],
+    cursor: 4,
+    firing: [
+      { side: 'player', slot: 4, glow: 1 },
+      { side: 'enemy', slot: 4, glow: 1 },
+    ],
+    impacts: [{ event: { type: 'fizzle', round: 1, slot: 4, side: 'player', uid: 'p4', cardId: 'whetstone', reason: 'no-slot' }, age: 0.5 }],
   },
   {
     id: 'trade-hits',

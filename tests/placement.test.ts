@@ -1,5 +1,6 @@
 // Placement rules R-03 to R-06. Every describe() names the rule id(s) from RULES.md it covers.
 import { describe, expect, it } from 'vitest';
+import { CARDS } from '../data/cards.ts';
 import { RULES } from '../data/rules.ts';
 import { checkPlace, createBattle, EngineError, startBattle, step, type BattleState } from '../engine/index.ts';
 
@@ -68,12 +69,15 @@ describe('R-04 energy is set at the start of placement and not carried over', ()
 describe('R-05 placing a card costs its energy', () => {
   it('places into an empty slot, pays the cost and leaves the hand', () => {
     const state = fresh();
-    const uid = firstHandUid(state);
+    const card = state.player.hand[0];
+    if (card === undefined) throw new Error('empty hand');
+    const { uid, cardId } = card;
+    const cost = CARDS[cardId as keyof typeof CARDS].cost;
     const { state: next, events } = step(state, { type: 'place', uid, slot: 2 });
     expect(next.player.line[1]?.uid).toBe(uid);
     expect(next.player.hand.map((c) => c.uid)).not.toContain(uid);
     expect(events).toEqual([
-      { type: 'place', round: 1, slot: 2, uid, cardId: 'slash', cost: 1, energyAfter: 2, replaced: null },
+      { type: 'place', round: 1, slot: 2, uid, cardId, cost, energyAfter: RULES.energyPerRound - cost, replaced: null },
     ]);
   });
 
@@ -87,7 +91,7 @@ describe('R-05 placing a card costs its energy', () => {
   it('replacing a different card sends the old card to the discard pile and still pays', () => {
     // Only one player card exists before T01, so the occupant is put on the line directly.
     const base = fresh();
-    const occupant = { uid: 'x1', cardId: 'dummy-swing', level: 1 } as const;
+    const occupant = { uid: 'x1', cardId: 'dummy-swing', level: 1, growth: 0 } as const;
     const state: BattleState = { ...base, player: { ...base.player, line: [occupant, null, null, null] } };
     const uid = firstHandUid(state);
     const { state: next, events } = step(state, { type: 'place', uid, slot: 1 });
@@ -99,7 +103,8 @@ describe('R-05 placing a card costs its energy', () => {
   });
 
   it('refuses a same-name placement because merging (R-15) is not built yet', () => {
-    let state = fresh();
+    // A deck of one card kind, so the hand surely holds two cards with the same name.
+    let state = createBattle({ enemyId: 'training-dummy', seed: 1, deck: ['slash', 'slash', 'slash', 'slash'] });
     state = step(state, { type: 'place', uid: firstHandUid(state), slot: 1 }).state;
     expectRejected(state, { type: 'place', uid: firstHandUid(state), slot: 1 }, 'merge-not-built');
   });

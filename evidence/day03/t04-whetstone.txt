@@ -1,0 +1,71 @@
+T04 Whetstone (#12): real runs at commit 032db31, 2026-11-19T05:14Z
+
+$ npm run play -- --seed 5   (only Round, Slot and Whetstone lines, first 26)
+Round 1: energy set to 3.
+Drew Whetstone.
+Placed Whetstone in slot 3 for 1 energy.
+Round 1: the lines strike.
+Slot 1: You fire Parry.
+Slot 2: You fire Slash.
+Slot 2: Training Dummy fires Straw Swing.
+Slot 2: Training Dummy takes 4 damage, 20 HP left.
+Slot 2: You take 3 damage, 27 HP left.
+Slot 3: You fire Whetstone.
+Slot 3: Whetstone fizzles: slot 4 is empty.
+Slot 4: Training Dummy fires Straw Swing.
+Slot 4: You take 3 damage, 24 HP left.
+Round 2: energy set to 3.
+Round 2: the lines strike.
+Slot 1: You fire Parry.
+Slot 2: You fire Slash.
+Slot 2: Training Dummy fires Straw Swing.
+Slot 2: Training Dummy takes 4 damage, 16 HP left.
+Slot 2: You take 3 damage, 21 HP left.
+Slot 3: You fire Whetstone.
+Slot 3: Whetstone gives Slash in slot 4 +1 for the battle (now 5).
+Slot 4: You fire Slash.
+Slot 4: Training Dummy fires Straw Swing.
+Slot 4: Training Dummy takes 5 damage, 11 HP left.
+Slot 4: You take 3 damage, 18 HP left.
+
+$ npm run play -- --seed 6   (round 1 only)
+Round 1: the lines strike.
+Slot 1: You fire Whetstone.
+Slot 1: Whetstone gives Parry in slot 2 +1 for the battle (now 5).
+Slot 2: You fire Parry.
+Slot 2: Training Dummy fires Straw Swing.
+Slot 2: You block 3 of 3 damage.
+Slot 3: You fire Slash.
+Slot 3: Training Dummy takes 4 damage, 20 HP left.
+Slot 4: Training Dummy fires Straw Swing.
+Slot 4: You take 3 damage, 27 HP left.
+
+$ npx vitest run tests/growth.test.ts --reporter verbose
+ ✓ tests/growth.test.ts > T04 Whetstone card data > is a cost-1 growth card that targets the next card, and the starter deck holds one 2ms
+ ✓ tests/growth.test.ts > T04 Whetstone card data > describes itself and its events from the table and the event payloads 1ms
+ ✓ tests/growth.test.ts > R-12 R-14 Whetstone gives the next card growth > the next card fires with its new value in the same round 0ms
+ ✓ tests/growth.test.ts > R-12 R-14 Whetstone gives the next card growth > growth lasts the battle and adds up each round the Whetstone fires 0ms
+ ✓ tests/growth.test.ts > R-12 R-14 Whetstone gives the next card growth > growth on a block card adds to its block 0ms
+ ✓ tests/growth.test.ts > R-12 R-14 Whetstone gives the next card growth > a Whetstone can grow another Whetstone, which then gives more (Whetstone + Whetstone) 0ms
+ ✓ tests/growth.test.ts > R-12 a targeted effect fizzles instead of skipping > Whetstone in slot 4 fizzles: no next slot, no wrap-around to slot 1 0ms
+ ✓ tests/growth.test.ts > R-12 a targeted effect fizzles instead of skipping > Whetstone before an empty slot fizzles and does not reach the card after it 0ms
+ ✓ tests/growth.test.ts > R-14 growth stays with the card through discard, draw and placement > a grown Slash replaced, reshuffled, drawn and placed again keeps its growth 0ms
+      Tests  9 passed (9)
+
+Mutations: each change was made to engine/battle.ts, the growth tests were run, and the file was restored.
+== mutation: growth replaces instead of adding
+     × growth lasts the battle and adds up each round the Whetstone fires 3ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/growth.test.ts > R-12 R-14 Whetstone gives the next card growth > growth lasts the battle and adds up each round the Whetstone fires
+      Tests  1 failed | 8 passed (9)
+== mutation: empty slot ignored silently
+     × Whetstone before an empty slot fizzles and does not reach the card after it 4ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/growth.test.ts > R-12 a targeted effect fizzles instead of skipping > Whetstone before an empty slot fizzles and does not reach the card after it
+      Tests  1 failed | 8 passed (9)
+== mutation: fizzle skips ahead to a farther card
+     × Whetstone before an empty slot fizzles and does not reach the card after it 3ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/growth.test.ts > R-12 a targeted effect fizzles instead of skipping > Whetstone before an empty slot fizzles and does not reach the card after it
+      Tests  1 failed | 8 passed (9)
+battle.ts restored

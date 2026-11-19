@@ -13,6 +13,7 @@ import {
   type CardInstance,
   type EndReason,
   type EnemyDef,
+  type FizzleReason,
   type GameEvent,
   type Owner,
   type PlayerState,
@@ -102,10 +103,10 @@ export function startBattle(setup: BattleSetup): StepResult {
   }
 
   let next = 1;
-  const playerCard = (cardId: string): CardInstance => ({ uid: `p${next++}`, cardId, level: 1 });
+  const playerCard = (cardId: string): CardInstance => ({ uid: `p${next++}`, cardId, level: 1, growth: 0 });
   const deck = deckIds.map(playerCard);
   const line = lineIds.map((id): Slot => (id === null ? null : playerCard(id)));
-  const enemyLine = enemyDef.line.map((id, i): Slot => (id === null ? null : { uid: `e${i + 1}`, cardId: id, level: 1 }));
+  const enemyLine = enemyDef.line.map((id, i): Slot => (id === null ? null : { uid: `e${i + 1}`, cardId: id, level: 1, growth: 0 }));
 
   const events: GameEvent[] = [];
   const shuffled = shuffle(deck, seedRng(setup.seed));
@@ -220,18 +221,85 @@ interface Contribution {
   block: number;
 }
 
-function contributionOf(card: CardInstance): Contribution {
+/**
+ * The card's current value: its table value at its level plus its growth (R-14).
+ * The page and the CLI show this number; they never add growth themselves.
+ */
+export function cardValue(card: Pick<CardInstance, 'cardId' | 'level' | 'growth'>): number {
   const effect = cardDef(card.cardId).effect;
   const kind = effect.kind;
-  const value = effect.amount[card.level - 1] ?? 0;
   switch (kind) {
     case 'attack':
-      return { attack: value, block: 0 };
     case 'block':
-      return { attack: 0, block: value };
+    case 'grow':
+      return (effect.amount[card.level - 1] ?? 0) + card.growth;
     default:
       return assertNever(kind);
   }
+}
+
+/** R-12: whether growth can change this card's value. */
+function hasValue(card: CardInstance): boolean {
+  const kind = cardDef(card.cardId).effect.kind;
+  switch (kind) {
+    case 'attack':
+    case 'block':
+    case 'grow':
+      return true;
+    default:
+      return assertNever(kind);
+  }
+}
+
+function contributionOf(card: CardInstance): Contribution {
+  const kind = cardDef(card.cardId).effect.kind;
+  switch (kind) {
+    case 'attack':
+      return { attack: cardValue(card), block: 0 };
+    case 'block':
+      return { attack: 0, block: cardValue(card) };
+    case 'grow':
+      return { attack: 0, block: 0 };
+    default:
+      return assertNever(kind);
+  }
+}
+
+/**
+ * R-12, R-14: a grow effect fired from `index` gives the next card on the same line growth.
+ * Returns the line with the grown card replaced by its new instance, or the same line on a fizzle.
+ */
+function fireGrow(line: readonly Slot[], index: number, side: Owner, round: number, events: GameEvent[]): readonly Slot[] {
+  const source = line[index];
+  if (source === null || source === undefined) return line;
+  const effect = cardDef(source.cardId).effect;
+  if (effect.kind !== 'grow') return line;
+  const slot = index + 1;
+  const targetIndex = index + 1; // 'next' is the only target so far
+  const target = targetIndex < line.length ? (line[targetIndex] ?? null) : undefined;
+  const fizzle = (reason: FizzleReason): readonly Slot[] => {
+    events.push({ type: 'fizzle', round, slot, side, uid: source.uid, cardId: source.cardId, reason });
+    return line;
+  };
+  if (target === undefined) return fizzle('no-slot');
+  if (target === null) return fizzle('empty-slot');
+  if (!hasValue(target)) return fizzle('no-value');
+  const amount = cardValue(source);
+  const grown: CardInstance = { ...target, growth: target.growth + amount };
+  events.push({
+    type: 'grow',
+    round,
+    slot,
+    side,
+    uid: source.uid,
+    cardId: source.cardId,
+    targetSlot: targetIndex + 1,
+    targetUid: target.uid,
+    targetCardId: target.cardId,
+    amount,
+    valueAfter: cardValue(grown),
+  });
+  return line.map((c, i) => (i === targetIndex ? grown : c));
 }
 
 function endReason(playerDead: boolean, enemyDead: boolean): EndReason | null {
@@ -253,16 +321,20 @@ function runRound(state: BattleState, events: GameEvent[]): BattleState {
     const slot = i + 1;
     const totals: Record<Owner, Contribution> = { player: { attack: 0, block: 0 }, enemy: { attack: 0, block: 0 } };
 
-    for (const [side, line] of [
-      ['player', player.line],
-      ['enemy', enemy.line],
-    ] as const) {
+    for (const side of ['player', 'enemy'] as const) {
+      const line = side === 'player' ? player.line : enemy.line;
       const card = line[i] ?? null;
       if (card === null) continue;
       events.push({ type: 'trigger', round, slot, side, uid: card.uid, cardId: card.cardId });
       const c = contributionOf(card);
       totals[side].attack += c.attack;
       totals[side].block += c.block;
+      // R-12, R-14: growth lands on the next card now, so it fires with its new value this round.
+      const after = fireGrow(line, i, side, round, events);
+      if (after !== line) {
+        if (side === 'player') player = { ...player, line: after };
+        else enemy = { ...enemy, line: after };
+      }
     }
 
     // R-08: damage taken = opposing attack in this slot − own block in this slot, minimum 0.
