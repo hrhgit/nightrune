@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { playGreedy } from '../bots/greedy.ts';
+import { parseReplayArgs } from '../cli/replay-args.ts';
 import { makeRecord, parseRecord, replay, startBattle, stateHash, type BattleRecord } from '../engine/index.ts';
 
 const enemyId = 'training-dummy';
@@ -82,5 +83,26 @@ describe('R-16 replay command exit codes', () => {
     expect(run(write('broken.json', '{"seed": 7, "actions": [')).status).toBe(2);
     expect(run(write('shape.json', '{"seed": 7}')).status).toBe(2);
     expect(run().status).toBe(2);
+    // Leftover or repeated options are errors, even when the hash would match (Qodo finding on #14).
+    expect(run(good, '--expect', 'bb20ce7f39161e47', '--expect').status).toBe(2);
+    expect(run(good, good).status).toBe(2);
   }, 30_000);
+
+  it('parses arguments strictly: one file, at most one --expect, nothing ignored', () => {
+    const h = '0123456789abcdef';
+    expect(parseReplayArgs(['r.json'])).toEqual({ ok: true, file: 'r.json' });
+    expect(parseReplayArgs(['--expect', h, 'r.json'])).toEqual({ ok: true, file: 'r.json', expect: h });
+    expect(parseReplayArgs(['--', '--odd-name.json'])).toEqual({ ok: true, file: '--odd-name.json' });
+    const problem = (...a: string[]) => {
+      const r = parseReplayArgs(a);
+      return r.ok ? 'accepted' : r.problem;
+    };
+    expect(problem('r.json', '--expect', h, '--expect')).toBe('--expect was given more than once');
+    expect(problem('r.json', '--expect')).toBe('--expect needs a hash of 16 hex digits');
+    expect(problem('r.json', '--expect', h, '--expect', h)).toBe('--expect was given more than once');
+    expect(problem('r.json', '--expect', 'BB20')).toBe('--expect needs a hash of 16 hex digits');
+    expect(problem('r.json', '--verbose')).toBe('unknown option --verbose');
+    expect(problem('a.json', 'b.json')).toBe('expected one record file, got 2');
+    expect(problem()).toBe('no record file given');
+  });
 });

@@ -1,23 +1,22 @@
 // Replays a battle record and checks its final-state hash (R-16).
-// Usage: npm run replay -- <record.json> [--expect <hash>]
+// Usage: npm run replay -- [--expect <hash>] [--] <record.json>
 // Exit codes: 0 replayed (and the hash matched, if one was given); 1 hash mismatch or an action
-// the engine refused; 2 the file could not be read or is not a record.
+// the engine refused; 2 bad arguments, or the file could not be read or is not a record.
 import { readFileSync } from 'node:fs';
 import { enemyDef, parseRecord, replay } from '../engine/index.ts';
+import { parseReplayArgs } from './replay-args.ts';
 
-const USAGE = 'Usage: npm run replay -- <record.json> [--expect <hash>]';
+const USAGE = 'Usage: npm run replay -- [--expect <hash>] [--] <record.json>';
 
 function fail(code: 1 | 2, message: string): never {
   console.error(message);
   process.exit(code);
 }
 
-const args = process.argv.slice(2);
-const expectAt = args.indexOf('--expect');
-const expectArg = expectAt === -1 ? undefined : args[expectAt + 1];
-if (expectAt !== -1 && (expectArg === undefined || expectArg.startsWith('--'))) fail(2, `--expect needs a hash.\n${USAGE}`);
-const file = args.find((a, i) => !a.startsWith('--') && (expectAt === -1 || i !== expectAt + 1));
-if (file === undefined) fail(2, USAGE);
+const args = parseReplayArgs(process.argv.slice(2));
+if (!args.ok) fail(2, `${args.problem}.\n${USAGE}`);
+const { file } = args;
+const expectArg = args.expect;
 
 let data: unknown;
 try {
