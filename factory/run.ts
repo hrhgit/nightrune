@@ -218,7 +218,9 @@ function takeLock(): boolean {
   } catch {
     // removed between the two calls
   }
-  if (pid > 0 && run('kill', ['-0', String(pid)]).status === 0) return false;
+  // Alive only if that pid is still a factory run: a dead run's pid can be reused by another process.
+  const command = pid > 0 ? run('ps', ['-o', 'command=', '-p', String(pid)]).stdout : '';
+  if (command.includes('factory/run.ts')) return false;
   rmSync(LOCK, { force: true });
   return create();
 }
@@ -278,7 +280,8 @@ async function work(t: Ticket): Promise<void> {
     record.model = executor === 'codex' ? `${CFG.executors.codex.model} (${CFG.executors.codex.effort})` : CFG.executors.claude.model;
 
     const dir = join(WORK, `issue-${t.number}`);
-    must('git', ['fetch', 'origin', 'main']);
+    // --prune drops tracking refs of deleted branches, so the push lease below is not stale.
+    must('git', ['fetch', '--prune', 'origin']);
     run('git', ['worktree', 'remove', '--force', dir]);
     rmSync(dir, { recursive: true, force: true });
     must('git', ['worktree', 'add', '-B', branch, dir, 'origin/main']);
