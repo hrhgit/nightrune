@@ -10,6 +10,13 @@ export const CARDS = {
     owner: 'player',
     effect: { kind: 'attack', amount: [4, 6, 9] },
   },
+  parry: {
+    name: 'Parry',
+    direction: 'defense',
+    cost: 1,
+    owner: 'player',
+    effect: { kind: 'block', amount: [4, 6, 9] },
+  },
   'dummy-swing': {
     name: 'Straw Swing',
     direction: 'attack',

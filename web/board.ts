@@ -21,6 +21,8 @@ export interface StoneLook {
 
 export interface Floater {
   readonly side: Owner;
+  /** damage: HP lost (flame); block: damage cancelled by this side's block (rune). */
+  readonly kind: 'damage' | 'block';
   readonly slot: number;
   readonly text: string;
   /** 0 when spawned, 1 when gone. */
@@ -389,14 +391,21 @@ function drawCursorTrack(ctx: CanvasRenderingContext2D, scene: Scene): void {
 function drawFloaters(ctx: CanvasRenderingContext2D, floaters: readonly Floater[]): void {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '700 30px "Alegreya", serif';
   for (const f of floaters) {
     const r = slotRect(f.side, f.slot);
     ctx.globalAlpha = Math.max(0, 1 - f.age);
-    ctx.fillStyle = PALETTE.flame;
-    ctx.shadowColor = 'rgba(0,0,0,0.6)';
-    ctx.shadowBlur = 6;
-    ctx.fillText(f.text, r.x + r.w / 2, r.y + r.h * 0.4 - f.age * 46);
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 8;
+    if (f.kind === 'damage') {
+      ctx.font = '700 30px "Alegreya", serif';
+      ctx.fillStyle = PALETTE.flame;
+      ctx.fillText(f.text, r.x + r.w / 2, r.y + r.h * 0.4 - f.age * 46);
+    } else {
+      // Block text sits just above the stone so it never covers the rune or a damage number.
+      ctx.font = '700 22px "Alegreya Sans", sans-serif';
+      ctx.fillStyle = DIRECTION_GLOW.defense;
+      ctx.fillText(f.text, r.x + r.w / 2, r.y - 14 - f.age * 24);
+    }
   }
   ctx.shadowBlur = 0;
   ctx.globalAlpha = 1;

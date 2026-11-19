@@ -12,6 +12,7 @@ export function cardValue(card: Pick<CardInstance, 'cardId' | 'level'>): number 
   const kind = effect.kind;
   switch (kind) {
     case 'attack':
+    case 'block':
       return effect.amount[card.level - 1] ?? 0;
     default:
       return assertNever(kind);
@@ -25,6 +26,8 @@ export function cardEffectText(card: Pick<CardInstance, 'cardId' | 'level'>): st
   switch (kind) {
     case 'attack':
       return `Deals ${cardValue(card)} damage to the opposing slot.`;
+    case 'block':
+      return `Blocks ${cardValue(card)} damage from the opposing slot only.`;
     default:
       return assertNever(kind);
   }
@@ -52,6 +55,8 @@ export function eventText(e: GameEvent, enemyId: string): string {
       return `Round ${e.round}: the lines strike.`;
     case 'trigger':
       return `Slot ${e.slot}: ${who(e.side)} ${e.side === 'player' ? 'fire' : 'fires'} ${cardName(e.cardId)}.`;
+    case 'block':
+      return `Slot ${e.slot}: ${who(e.side)} ${e.side === 'player' ? 'block' : 'blocks'} ${e.blocked} of ${e.incoming} damage.`;
     case 'damage':
       return `Slot ${e.slot}: ${who(e.target)} ${e.target === 'player' ? 'take' : 'takes'} ${e.amount} damage, ${e.hpAfter} HP left.`;
     case 'battle-end':

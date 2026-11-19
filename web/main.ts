@@ -7,6 +7,7 @@ import '@fontsource/alegreya-sans/500.css';
 import '@fontsource/alegreya-sans/700.css';
 import './style.css';
 import {
+  assertNever,
   cardDef,
   checkPlace,
   EngineError,
@@ -85,7 +86,7 @@ interface App {
   shownHp: Record<Owner, number>;
   cursor: number | null;
   firing: Map<string, number>;
-  floaters: { side: Owner; slot: number; text: string; born: number }[];
+  floaters: { side: Owner; slot: number; kind: Floater['kind']; text: string; born: number }[];
   maxHp: Record<Owner, number>;
 }
 
@@ -334,19 +335,27 @@ function buildBeats(events: readonly GameEvent[], motion: boolean): Beat[] {
       post.push(e);
       continue;
     }
-    if (e.type === 'discard' && current === null) {
-      pre.push(e);
-    } else if (e.type === 'round-start') {
-      pre.push(e);
-    } else if (e.type === 'trigger' || e.type === 'damage') {
-      const lastSlot: number = current?.slot ?? 0;
-      if (current === null || current.slot !== e.slot) {
-        flush();
-        for (let s = lastSlot + 1; s < e.slot; s++) beats.push({ slot: s, events: [], duration: BEAT_MS.emptySlot });
-        current = { slot: e.slot, events: [] };
+    // A switch with assertNever: a new event type must be placed in a beat explicitly.
+    switch (e.type) {
+      case 'discard':
+      case 'round-start':
+        // Before the cursor moves: R-06 hand discards and the round header. (A discard from the
+        // line only happens during placement, so it never arrives mid-run.)
+        pre.push(e);
+        break;
+      case 'trigger':
+      case 'block':
+      case 'damage': {
+        const lastSlot: number = current?.slot ?? 0;
+        if (current === null || current.slot !== e.slot) {
+          flush();
+          for (let s = lastSlot + 1; s < e.slot; s++) beats.push({ slot: s, events: [], duration: BEAT_MS.emptySlot });
+          current = { slot: e.slot, events: [] };
+        }
+        current.events.push(e);
+        break;
       }
-      current.events.push(e);
-    } else if (e.type === 'battle-end') {
+      case 'battle-end': {
       // R-10 ends the run right after the current slot; the round limit ends it after the last slot.
       const lastSlot: number = current?.slot ?? beats.at(-1)?.slot ?? 0;
       const endSlot = e.reason === 'round-limit' ? app.state.player.line.length : Math.max(lastSlot, 1);
@@ -358,13 +367,22 @@ function buildBeats(events: readonly GameEvent[], motion: boolean): Beat[] {
       current.events.push(e);
       afterRun = true;
       flush();
-    } else {
-      // placement-start / shuffle / draw: the next round's placement.
-      const lastSlot: number = current?.slot ?? beats.at(-1)?.slot ?? 0;
-      flush();
-      for (let s = lastSlot + 1; s <= app.state.player.line.length; s++) beats.push({ slot: s, events: [], duration: BEAT_MS.emptySlot });
-      afterRun = true;
-      post.push(e);
+      break;
+      }
+      case 'placement-start':
+      case 'shuffle':
+      case 'draw':
+      case 'place': {
+        // The next round's placement has begun.
+        const lastSlot: number = current?.slot ?? beats.at(-1)?.slot ?? 0;
+        flush();
+        for (let s = lastSlot + 1; s <= app.state.player.line.length; s++) beats.push({ slot: s, events: [], duration: BEAT_MS.emptySlot });
+        afterRun = true;
+        post.push(e);
+        break;
+      }
+      default:
+        assertNever(e);
     }
   }
   flush();
@@ -409,7 +427,10 @@ function enterBeat(beat: Beat, now: number): void {
     if (e.type === 'trigger') app.firing.set(e.uid, 1);
     if (e.type === 'damage') {
       app.shownHp[e.target] = e.hpAfter;
-      if (!motionQuery.matches) app.floaters.push({ side: e.target, slot: e.slot, text: `−${e.amount}`, born: now });
+      if (!motionQuery.matches) app.floaters.push({ side: e.target, slot: e.slot, kind: 'damage', text: `−${e.amount}`, born: now });
+    }
+    if (e.type === 'block' && !motionQuery.matches) {
+      app.floaters.push({ side: e.side, slot: e.slot, kind: 'block', text: `Blocked ${e.blocked}`, born: now });
     }
   }
   appendLog(beat.events);
@@ -478,7 +499,7 @@ function draw(now: number): void {
   const targets = new Set<number>(
     selected === null || app.anim !== null ? [] : legalPlacements(app.state).flatMap((p) => (p.uid === selected ? [p.slot] : [])),
   );
-  const floaters: Floater[] = app.floaters.map((f) => ({ side: f.side, slot: f.slot, text: f.text, age: (now - f.born) / FLOATER_MS }));
+  const floaters: Floater[] = app.floaters.map((f) => ({ side: f.side, slot: f.slot, kind: f.kind, text: f.text, age: (now - f.born) / FLOATER_MS }));
   drawBoard(ctx, {
     seed: app.state.seed,
     time: now,

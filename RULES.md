@@ -42,7 +42,7 @@ Status: **done** = implemented and tested; **partial** = implemented in part (se
 | Id | Rule | Status |
 |---|---|---|
 | R-07 | The cursor walks from slot 1 to slot 4. In each slot, both sides' cards fire at the same time. If only one side has a card there, only that card fires; if both are empty, the slot is skipped. | done |
-| R-08 | Head-to-head resolution: within one slot, first total each side's attack and block for that slot. Damage taken by a side = opposing attack in that slot − own block in that slot, minimum 0. Both sides lose HP at the same time. Block applies only to that slot; it does not carry to later slots or rounds. | partial: attack done; block [T01] |
+| R-08 | Head-to-head resolution: within one slot, first total each side's attack and block for that slot. Damage taken by a side = opposing attack in that slot − own block in that slot, minimum 0. Both sides lose HP at the same time. Block applies only to that slot; it does not carry to later slots or rounds. | done |
 | R-09 | Cards stay on the line and fire every round until replaced. | done (no replacement yet) |
 | R-10 | After a slot resolves, if either side is at 0 HP or below, the battle ends immediately and later slots do not fire. If both sides are at 0 or below, the player loses. | done |
 | R-11 | If the enemy is still alive at the end of round 20's run, the player loses. | done |
