@@ -13,6 +13,8 @@ import { homedir } from 'node:os';
 import { withoutHome } from './record.ts';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
+import { ESLint } from 'eslint';
+import { disputedIds, LESSONS_LOG, lessonProblems, lessonRows, PARSE_ERROR, parseLessons, withoutRunnerFiles } from './lessons.ts';
 import { areaOf, criteria, outside, type Ticket } from './ticket.ts';
 import { afterFixRound, blocking, forHuman, judge, type Finding, type Judgement, type RunFacts } from './verdict.ts';
 
@@ -36,6 +38,7 @@ const WORK = join(homedir(), '.nightrune-factory');
 const LOCK = join(WORK, 'lock');
 const QUESTION = '.factory-question.md';
 const DISAGREE = '.factory-disagree.md';
+const LESSONS = '.factory-lessons.json';
 const startedAt = new Date();
 const runId = startedAt.toISOString().replace(/[:.]/g, '-');
 const events: { readonly at: string; readonly step: string; readonly detail?: unknown }[] = [];
@@ -125,6 +128,54 @@ function runAgent(executor: Area['executor'], prompt: string, dir: string, sessi
   return report.trim();
 }
 
+/** Lessons for the findings this round fixed: what is wrong with them, or nothing. Reads the file, leaves it. */
+async function lessonCheck(dir: string, open: readonly Finding[], disputed: string | null): Promise<string[]> {
+  const file = join(dir, LESSONS);
+  const parsed = parseLessons(existsSync(file) ? readFileSync(file, 'utf8') : null);
+  if (parsed.problems.length > 0) return parsed.problems;
+  // "Before this round" is the commit the worktree is on; this round's edits are uncommitted.
+  const beforeConfig = join(dir, '.factory-base-eslint.config.js');
+  writeFileSync(beforeConfig, must('git', ['show', 'HEAD:eslint.config.js'], { cwd: dir }));
+  const probe = (eslint: ESLint) => async (code: string, filePath: string): Promise<string[]> => {
+    const [r] = await eslint.lintText(code, { filePath: join(dir, filePath) });
+    return (r?.messages ?? []).map((m) => m.ruleId ?? PARSE_ERROR);
+  };
+  const removed = Number(must('git', ['diff', '--numstat', 'HEAD', '--', 'eslint.config.js'], { cwd: dir }).split('\t')[1] ?? 0);
+  try {
+    return await lessonProblems(parsed.lessons, {
+      required: open,
+      disputed: disputedIds(disputed),
+      changedFiles: uncommitted(dir),
+      lintConfigRemovedLines: removed,
+      lint: probe(new ESLint({ cwd: dir })),
+      lintBefore: probe(new ESLint({ cwd: dir, overrideConfigFile: beforeConfig })),
+    });
+  } finally {
+    rmSync(beforeConfig, { force: true });
+  }
+}
+
+/** The lessons log is the runner's: whatever the agent did to it is undone before checks and commit. */
+function restoreRunnerFiles(dir: string): void {
+  const tracked = run('git', ['cat-file', '-e', `HEAD:${LESSONS_LOG}`], { cwd: dir }).status === 0;
+  if (tracked) must('git', ['checkout', 'HEAD', '--', LESSONS_LOG], { cwd: dir });
+  else rmSync(join(dir, LESSONS_LOG), { force: true });
+}
+
+/** Accepted lessons go into factory/lessons.md, written by the runner so the format cannot drift. */
+function recordLessons(dir: string, issue: number, open: readonly Finding[]): number {
+  const file = join(dir, LESSONS);
+  if (!existsSync(file)) return 0;
+  const { lessons } = parseLessons(readFileSync(file, 'utf8'));
+  rmSync(file);
+  if (lessons.length === 0) return 0;
+  const out = join(dir, 'factory', 'lessons.md');
+  const head = '# Lessons from review findings\n\nEach row is a Qodo finding the factory agent fixed, and the earlier check it became. The factory verified each lint rule fires on bad code and not on good code.\n\n| Issue | Finding | Became check |\n|---|---|---|\n';
+  const rows = lessonRows(lessons, issue, new Map(open.map((f) => [f.id, f.title])));
+  writeFileSync(out, `${existsSync(out) ? readFileSync(out, 'utf8').replace(/\n*$/, '\n') : head}${rows}\n`);
+  return lessons.length;
+}
+
 function readAndRemove(dir: string, name: string): string | null {
   const p = join(dir, name);
   if (!existsSync(p)) return null;
@@ -168,9 +219,9 @@ ${t.body}
 ${RULES_OF_THE_RUN(area)}`;
 }
 
-function retryChecksPrompt(t: Ticket, area: Area, outsideFiles: readonly string[], output: string): string {
+function retryChecksPrompt(t: Ticket, area: Area, outsideFiles: readonly string[], output: string, lessonIssues: readonly string[] = []): string {
   return `You are continuing work on issue #${t.number} (${t.title}) in this repository. The factory's checks did not pass.
-${outsideFiles.length ? `\nThese files are outside your area; revert your changes to them: ${outsideFiles.join(', ')}\n` : ''}${output ? `\nThe end of \`npm run check\`:\n\n\`\`\`\n${output}\n\`\`\`\n` : ''}
+${outsideFiles.length ? `\nThese files are outside your area; revert your changes to them: ${outsideFiles.join(', ')}\n` : ''}${output ? `\nThe end of \`npm run check\`:\n\n\`\`\`\n${output}\n\`\`\`\n` : ''}${lessonIssues.length ? `\nThe lessons in ${LESSONS} are not accepted yet:\n${lessonIssues.map((x) => `- ${x}`).join('\n')}\n` : ''}
 Fix the cause, then run \`npm run check\` again.
 ${RULES_OF_THE_RUN(area)}`;
 }
@@ -180,7 +231,13 @@ function findingsPrompt(t: Ticket, area: Area, open: Finding[], full: Map<string
 
 ${open.map((f) => `## ${f.id}: ${f.title} (${f.action_level})\n\n${JSON.stringify(full.get(f.id), null, 2)}`).join('\n\n')}
 
-Investigate each one against the code and the issue. Fix the ones that are real. For any you are sure is wrong, do not change code for it: write the finding id and your evidence to ${DISAGREE}; a person will decide.
+Investigate each one against the code and the issue. Fix the ones that are real. For any you are sure is wrong, do not change code for it: write one line per disputed finding to ${DISAGREE}, starting with the finding id, as "<finding id>: <your evidence>". A person will decide.
+
+Then, for each finding you fixed, make the same mistake cheaper to catch next time, and describe it in ${LESSONS} (a JSON array, one entry per fixed finding id). Pick the earliest layer that can catch it: type, lint, test, runtime, review-rule, none.
+- lint: add a rule to eslint.config.js; entry {"finding","layer":"lint","rule","filePath","badCode","goodCode"}. The factory lints badCode (it must trigger the rule) and goodCode (it must not), at filePath.
+- type, test, runtime: entry {"finding","layer","check"} where check is a file you changed that holds the check.
+- review-rule or none: entry {"finding","layer","reason"} saying why nothing earlier can catch it (a logic or judgement mistake usually belongs in a test, not none).
+The factory verifies these entries; findings you disputed need none.
 ${RULES_OF_THE_RUN(area)}`;
 }
 
@@ -275,6 +332,7 @@ async function work(t: Ticket): Promise<void> {
     maxAttempts: CFG.maxAttempts,
     stalled: false,
     stoppedBy: null,
+    lessonProblems: [],
   };
   const record: Record<string, unknown> = { run: runId, issue: t.number, title: t.title, criteria: crit.length, area: areaName, executor: null, model: null, implementAttempts: 0, reviewRounds: 0, pr: null, startedAt: startedAt.toISOString() };
   if (!facts.ticketOk || area === undefined) return finish(t, facts, record, null, '');
@@ -311,6 +369,7 @@ async function work(t: Ticket): Promise<void> {
     while (facts.attempts < CFG.maxAttempts) {
       facts.attempts += 1;
       report = runAgent(executor, prompt, dir, session);
+      restoreRunnerFiles(dir);
       facts.question = readAndRemove(dir, QUESTION);
       if (facts.question !== null) break;
       if (headOf(dir) !== base) {
@@ -320,7 +379,7 @@ async function work(t: Ticket): Promise<void> {
       const files = changedFiles(dir, base);
       facts.emptyChange = files.length === 0;
       if (facts.emptyChange) break;
-      facts.outsideArea = outside(files, area.paths);
+      facts.outsideArea = outside(withoutRunnerFiles(files), area.paths);
       lastChecks = checks(dir);
       facts.checksPassed = lastChecks.ok;
       note('checks', { attempt: facts.attempts, passed: lastChecks.ok, outside: facts.outsideArea });
@@ -386,6 +445,7 @@ async function work(t: Ticket): Promise<void> {
       reviewRounds += 1;
       facts.attempts = reviewRounds;
       report = runAgent(executor, findingsPrompt(t, area, open, seen.raw), dir, session);
+      restoreRunnerFiles(dir);
       const asked = readAndRemove(dir, QUESTION);
       const disagreement = readAndRemove(dir, DISAGREE);
       const said = [asked, disagreement === null ? null : `the agent disagrees with a finding:\n${disagreement}`].filter((x) => x !== null);
@@ -399,24 +459,31 @@ async function work(t: Ticket): Promise<void> {
         facts.stalled = true; // findings open and the agent changed nothing
         break;
       }
-      facts.outsideArea = outside(changedFiles(dir, base), area.paths);
+      facts.outsideArea = outside(withoutRunnerFiles(changedFiles(dir, base)), area.paths);
       lastChecks = checks(dir);
       facts.checksPassed = lastChecks.ok;
-      note('checks', { round: reviewRounds, passed: lastChecks.ok, outside: facts.outsideArea });
+      facts.lessonProblems = await lessonCheck(dir, open, disagreement);
+      note('checks', { round: reviewRounds, passed: lastChecks.ok, outside: facts.outsideArea, lessonProblems: facts.lessonProblems.length });
       // A fix that breaks the checks is repaired in place, not thrown away: keep working on the
       // same uncommitted changes, up to the retry limit.
-      for (let repair = 1; (!lastChecks.ok || facts.outsideArea.length > 0) && repair <= CFG.maxAttempts; repair += 1) {
-        report = runAgent(executor, retryChecksPrompt(t, area, facts.outsideArea, lastChecks.ok ? '' : lastChecks.output), dir, session);
+      for (let repair = 1; (!lastChecks.ok || facts.outsideArea.length > 0 || facts.lessonProblems.length > 0) && repair <= CFG.maxAttempts; repair += 1) {
+        report = runAgent(executor, retryChecksPrompt(t, area, facts.outsideArea, lastChecks.ok ? '' : lastChecks.output, facts.lessonProblems), dir, session);
+        restoreRunnerFiles(dir);
         if (headOf(dir) !== facts.headSha) {
           facts.stoppedBy = 'the agent made its own commits; only the factory commits';
           break;
         }
-        facts.outsideArea = outside(changedFiles(dir, base), area.paths);
+        facts.outsideArea = outside(withoutRunnerFiles(changedFiles(dir, base)), area.paths);
         lastChecks = checks(dir);
         facts.checksPassed = lastChecks.ok;
-        note('checks', { round: reviewRounds, repair, passed: lastChecks.ok, outside: facts.outsideArea });
+        facts.lessonProblems = await lessonCheck(dir, open, disagreement);
+        note('checks', { round: reviewRounds, repair, passed: lastChecks.ok, outside: facts.outsideArea, lessonProblems: facts.lessonProblems.length });
       }
-      if (facts.stoppedBy !== null || !lastChecks.ok || facts.outsideArea.length > 0) break;
+      if (facts.stoppedBy !== null || !lastChecks.ok || facts.outsideArea.length > 0 || facts.lessonProblems.length > 0) break;
+      record.lessons = Number(record.lessons ?? 0) + recordLessons(dir, t.number, open);
+      // The runner-written log is part of the change: check it against the area like everything else.
+      facts.outsideArea = outside(withoutRunnerFiles(changedFiles(dir, base)), area.paths);
+      if (facts.outsideArea.length > 0) break;
       facts.headSha = commit(`Agent: address Qodo findings on #${t.number} (round ${reviewRounds})`);
       stopAfterReview = next === 'commit-then-stop'; // review the kept fixes, then hand the dispute to a person
     }

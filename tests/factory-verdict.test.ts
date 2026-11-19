@@ -17,12 +17,18 @@ const clean: RunFacts = {
   maxAttempts: 3,
   stalled: false,
   stoppedBy: null,
+  lessonProblems: [],
 };
 const finding = (action_level: string, attribution_status = 'pending'): Finding => ({ id: action_level, title: `a ${action_level} finding`, action_level, attribution_status });
 
 describe('factory verdict', () => {
   it('READY only with passing checks and a completed review of the PR head with no open blocking finding', () => {
     expect(judge(clean)).toEqual({ verdict: 'READY', reasons: [] });
+  });
+
+  it('NEEDS_FIX while a fixed finding has no accepted lesson', () => {
+    const j = judge({ ...clean, lessonProblems: ['finding f1 (x) has no lesson'] });
+    expect(j).toEqual({ verdict: 'NEEDS_FIX', reasons: ['lesson not accepted: finding f1 (x) has no lesson'] });
   });
 
   it('flags informational findings to the person but still READY', () => {
