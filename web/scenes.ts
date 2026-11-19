@@ -1,0 +1,135 @@
+// Hand-built board moments for the scene preview page (scene.html) and `npm run scenes`.
+// A scene is only a picture: it sets what is on the board directly instead of playing up to it,
+// so it can show any moment quickly. Card ids are still checked by the engine (cardDef throws).
+// Add a scene here when a card or effect gets a new look, so it can be checked without playing.
+import type { GameEvent, Level, Owner } from '../engine/index.ts';
+
+/** Events that put a label over a stone. */
+export type FloaterSource = Extract<GameEvent, { type: 'damage' } | { type: 'block' }>;
+
+/** A card id at level 1, or [card id, level]. */
+export type CardRef = string | readonly [string, Level];
+type Line = readonly [CardRef | null, CardRef | null, CardRef | null, CardRef | null];
+
+export interface SceneSpec {
+  readonly id: string;
+  readonly title: string;
+  /** What to look at in this scene. */
+  readonly look: string;
+  readonly seed: number;
+  readonly enemyLine: Line;
+  readonly playerLine: Line;
+  readonly hand?: readonly CardRef[];
+  /** Index into `hand` of the selected card. */
+  readonly selected?: number;
+  readonly hp?: Partial<Record<Owner, readonly [now: number, max: number]>>;
+  /** Turn-order cursor column, 1-based. */
+  readonly cursor?: number;
+  /** Stones glowing as they fire, with strength 0..1. */
+  readonly firing?: readonly { readonly side: Owner; readonly slot: number; readonly glow: number }[];
+  /** Player slots shown as placement targets. */
+  readonly targets?: readonly number[];
+  readonly hover?: number;
+  /** Labels from events, at an age from 0 (just spawned) to 1 (gone). */
+  readonly floaters?: readonly { readonly event: FloaterSource; readonly age: number }[];
+  /** Frozen animation clock in ms; drives fire flicker and target pulse. */
+  readonly time?: number;
+}
+
+const DUMMY: Line = [null, 'dummy-swing', null, 'dummy-swing'];
+const EMPTY: Line = [null, null, null, null];
+
+export const SCENES: readonly SceneSpec[] = [
+  {
+    id: 'opening',
+    title: 'Opening',
+    look: 'Empty player line, enemy line, full HP, a hand of four.',
+    seed: 7,
+    enemyLine: DUMMY,
+    playerLine: EMPTY,
+    hand: ['parry', 'parry', 'slash', 'slash'],
+  },
+  {
+    id: 'placing',
+    title: 'Choosing a slot',
+    look: 'Selected hand card, target highlight on all four slots, hover on slot 2.',
+    seed: 7,
+    enemyLine: DUMMY,
+    playerLine: EMPTY,
+    hand: ['parry', 'slash', 'slash'],
+    selected: 0,
+    targets: [1, 2, 3, 4],
+    hover: 2,
+  },
+  {
+    id: 'parry-block',
+    title: 'Parry blocks',
+    look: 'Slot 2 firing: "Blocked 3" above the Parry, no damage number, player HP full.',
+    seed: 7,
+    enemyLine: DUMMY,
+    playerLine: ['slash', 'parry', null, 'parry'],
+    cursor: 2,
+    firing: [
+      { side: 'enemy', slot: 2, glow: 1 },
+      { side: 'player', slot: 2, glow: 1 },
+    ],
+    floaters: [{ event: { type: 'block', round: 1, slot: 2, side: 'player', incoming: 3, blocked: 3 }, age: 0.25 }],
+  },
+  {
+    id: 'trade-hits',
+    title: 'Both sides hit',
+    look: 'Slot 1 firing: damage numbers on both lines at once. The enemy Slash is placed by hand (R-17 shared effects).',
+    seed: 11,
+    enemyLine: ['slash', 'dummy-swing', null, 'dummy-swing'],
+    playerLine: [['slash', 2], null, null, null],
+    hp: { player: [26, 30], enemy: [18, 24] },
+    cursor: 1,
+    firing: [
+      { side: 'enemy', slot: 1, glow: 1 },
+      { side: 'player', slot: 1, glow: 1 },
+    ],
+    floaters: [
+      { event: { type: 'damage', round: 2, slot: 1, target: 'enemy', amount: 6, hpAfter: 18 }, age: 0.3 },
+      { event: { type: 'damage', round: 2, slot: 1, target: 'player', amount: 4, hpAfter: 26 }, age: 0.3 },
+    ],
+  },
+  {
+    id: 'partial-block',
+    title: 'Partial block',
+    look: 'Slot 4 firing: "Blocked 6" and a damage number on the same stone without overlapping.',
+    seed: 13,
+    enemyLine: [null, 'dummy-swing', null, ['slash', 3]],
+    playerLine: [null, null, null, ['parry', 2]],
+    hp: { player: [27, 30] },
+    cursor: 4,
+    firing: [
+      { side: 'enemy', slot: 4, glow: 1 },
+      { side: 'player', slot: 4, glow: 1 },
+    ],
+    floaters: [
+      { event: { type: 'block', round: 2, slot: 4, side: 'player', incoming: 9, blocked: 6 }, age: 0.3 },
+      { event: { type: 'damage', round: 2, slot: 4, target: 'player', amount: 3, hpAfter: 27 }, age: 0.3 },
+    ],
+  },
+  {
+    id: 'full-lines',
+    title: 'Full lines, top levels',
+    look: 'Every slot filled, level 3 values, long names, no overlap between stones.',
+    seed: 3,
+    enemyLine: [['dummy-swing', 3], ['dummy-swing', 3], ['dummy-swing', 3], ['dummy-swing', 3]],
+    playerLine: [['slash', 3], ['parry', 3], ['slash', 3], ['parry', 3]],
+    hand: [['slash', 3], ['parry', 3]],
+  },
+  {
+    id: 'low-hp',
+    title: 'Low HP',
+    look: 'Nearly empty HP bars on both sides, a big damage number on the enemy.',
+    seed: 19,
+    enemyLine: DUMMY,
+    playerLine: [['slash', 3], null, null, null],
+    hp: { player: [2, 30], enemy: [1, 24] },
+    cursor: 1,
+    firing: [{ side: 'player', slot: 1, glow: 0.8 }],
+    floaters: [{ event: { type: 'damage', round: 5, slot: 1, target: 'enemy', amount: 9, hpAfter: 1 }, age: 0.15 }],
+  },
+];

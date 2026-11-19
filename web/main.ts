@@ -16,18 +16,17 @@ import {
   startBattle,
   step,
   type BattleState,
-  type CardInstance,
   type GameEvent,
   type Owner,
 } from '../engine/index.ts';
 import { parseSeed, SEED_HELP } from '../present/seed.ts';
-import { battleEndText, cardEffectText, cardName, cardValue, eventText, rejectText } from '../present/text.ts';
-import { BOARD, drawBoard, drawStone, slotRect, STONE, type Floater, type StoneLook } from './board.ts';
+import { battleEndText, cardEffectText, cardName, eventText, rejectText } from '../present/text.ts';
+import { BOARD, drawBoard, slotRect, type Floater } from './board.ts';
+import { floaterFor, handCanvas, look } from './look.ts';
 
 const ENEMY_ID = 'training-dummy';
 const BEAT_MS = { slot: 700, emptySlot: 220, pre: 260 } as const;
 const FLOATER_MS = 1000;
-const HAND_CANVAS = { w: STONE.w, h: STONE.h + 12 } as const;
 
 function byId<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
@@ -91,11 +90,6 @@ interface App {
 }
 
 let app: App;
-
-function look(card: CardInstance): StoneLook {
-  const def = cardDef(card.cardId);
-  return { name: def.name, direction: def.direction, cost: def.owner === 'player' ? def.cost : null, value: cardValue(card), level: card.level };
-}
 
 function randomSeed(): number {
   // Picking a fresh seed is the only use of randomness outside the engine; the seed is shown
@@ -237,22 +231,7 @@ function renderControls(): void {
     btn.setAttribute('aria-pressed', String(app.selected === card.uid));
     btn.setAttribute('aria-label', `${def.name}, cost ${def.cost}. ${cardEffectText(card)}`);
     if (!playable.has(card.uid)) btn.classList.add('unplayable');
-    const c = document.createElement('canvas');
-    const dpr = window.devicePixelRatio || 1;
-    // Extra margin so the jagged outline, notches and shadow are not clipped.
-    c.width = Math.round(HAND_CANVAS.w * dpr);
-    c.height = Math.round(HAND_CANVAS.h * dpr);
-    const cctx = c.getContext('2d');
-    if (cctx !== null) {
-      cctx.scale(dpr, dpr);
-      drawStone(cctx, { x: 10, y: 8, w: STONE.w - 20, h: STONE.h - 12 }, card, look(card), {
-        glow: app.selected === card.uid ? 0.8 : 0,
-        highlight: 'none',
-        pulse: 1,
-        key: card.uid,
-      });
-    }
-    btn.append(c);
+    btn.append(handCanvas(card, app.selected === card.uid));
     btn.addEventListener('click', () => onCard(card.uid));
     handEl.append(btn);
     if (card.uid === focusedUid) btn.focus();
@@ -425,14 +404,9 @@ function enterBeat(beat: Beat, now: number): void {
   app.firing = new Map();
   for (const e of beat.events) {
     if (e.type === 'trigger') app.firing.set(e.uid, 1);
-    if (e.type === 'damage') {
-      app.shownHp[e.target] = e.hpAfter;
-      // Shown with or without motion: reduced motion removes movement (see drawFloaters), not information.
-      app.floaters.push({ side: e.target, slot: e.slot, kind: 'damage', text: `−${e.amount}`, born: now });
-    }
-    if (e.type === 'block') {
-      app.floaters.push({ side: e.side, slot: e.slot, kind: 'block', text: `Blocked ${e.blocked}`, born: now });
-    }
+    if (e.type === 'damage') app.shownHp[e.target] = e.hpAfter;
+    // Shown with or without motion: reduced motion removes movement (see drawFloaters), not information.
+    if (e.type === 'damage' || e.type === 'block') app.floaters.push({ ...floaterFor(e), born: now });
   }
   appendLog(beat.events);
   announce();
