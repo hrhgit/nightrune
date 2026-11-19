@@ -47,22 +47,74 @@ export interface SideState {
   readonly line: readonly Slot[];
 }
 
-export type Outcome = 'ongoing' | 'won' | 'lost';
-
-export interface BattleState {
-  readonly enemyId: string;
-  /** 1-based number of the round that the next `run` action will execute. */
-  readonly round: number;
-  readonly player: SideState;
-  readonly enemy: SideState;
-  readonly outcome: Outcome;
+/** The player side also owns the card piles and energy (R-03 to R-06). Index 0 is the top of a pile. */
+export interface PlayerState extends SideState {
+  readonly drawPile: readonly CardInstance[];
+  readonly hand: readonly CardInstance[];
+  readonly discard: readonly CardInstance[];
+  readonly energy: number;
 }
 
-export type Action = { readonly type: 'run' };
+export type Outcome = 'ongoing' | 'won' | 'lost';
+
+/**
+ * While the outcome is 'ongoing' the battle is always in the placement phase of `round`:
+ * the hand is drawn and energy is set. The `run` action ends placement and runs the round.
+ */
+export interface BattleState {
+  readonly seed: number;
+  readonly enemyId: string;
+  /** 1-based number of the round whose placement is in progress. */
+  readonly round: number;
+  readonly player: PlayerState;
+  readonly enemy: SideState;
+  readonly outcome: Outcome;
+  /** Seeded generator state (R-16). The only source of randomness. */
+  readonly rng: number;
+}
+
+export type Action =
+  /** Place a hand card (by uid) into a slot, 1-based (R-05). */
+  | { readonly type: 'place'; readonly uid: string; readonly slot: number }
+  /** End placement and run the round (R-06, R-07). */
+  | { readonly type: 'run' };
+
+/** Why the engine refused an action. The state is never changed when an action is refused. */
+export type RejectReason =
+  | 'battle-over'
+  | 'card-not-in-hand'
+  | 'slot-out-of-range'
+  | 'not-enough-energy'
+  /** Placing onto a same-name card is a merge (R-15), which is not built yet (T07). */
+  | 'merge-not-built';
+
+export class EngineError extends Error {
+  readonly reason: RejectReason;
+  constructor(reason: RejectReason, message: string) {
+    super(message);
+    this.name = 'EngineError';
+    this.reason = reason;
+  }
+}
 
 export type EndReason = 'enemy-defeated' | 'player-defeated' | 'both-defeated' | 'round-limit';
 
 export type GameEvent =
+  | { readonly type: 'shuffle'; readonly round: number; readonly source: 'deck' | 'discard'; readonly count: number }
+  | { readonly type: 'draw'; readonly round: number; readonly uid: string; readonly cardId: string }
+  | { readonly type: 'placement-start'; readonly round: number; readonly energy: number }
+  | {
+      readonly type: 'place';
+      readonly round: number;
+      readonly slot: number;
+      readonly uid: string;
+      readonly cardId: string;
+      readonly cost: number;
+      readonly energyAfter: number;
+      /** uid of the card that was on the slot and went to the discard pile, if any. */
+      readonly replaced: string | null;
+    }
+  | { readonly type: 'discard'; readonly round: number; readonly uid: string; readonly cardId: string; readonly from: 'hand' | 'line' }
   | { readonly type: 'round-start'; readonly round: number }
   | {
       readonly type: 'trigger';
