@@ -23,8 +23,9 @@ export function claimsIn(markdown: string): { line: number; word: string }[] {
       fence = { char: marker[0] ?? '`', length: marker.length };
       return;
     }
-    // Code spans may use any run of backticks: `x`, ``x``, ``` x ```.
-    for (const m of text.replace(/(`+)[\s\S]*?\1/g, '').matchAll(BANNED)) out.push({ line: i + 1, word: m[0] });
+    // A code span opens with a run of N backticks and closes at the next run of exactly N
+    // (CommonMark); an opener with no such closer is literal text and is scanned.
+    for (const m of text.replace(/(?<!`)(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)/g, '').matchAll(BANNED)) out.push({ line: i + 1, word: m[0] });
   });
   return out;
 }
@@ -60,6 +61,8 @@ describe('the claims check itself', () => {
 
   it('handles double-backtick spans and a tilde line inside a backtick fence', () => {
     expect(claimsIn('Write ``fun`` in code.')).toEqual([]);
+    expect(claimsIn('``fun```')).toEqual([{ line: 1, word: 'fun' }]);
+    expect(claimsIn('`` a ` fun `` and `x`')).toEqual([]);
     const md = '````\n~~~\nfun\n````\nThis is fun.';
     expect(claimsIn(md)).toEqual([{ line: 5, word: 'fun' }]);
   });

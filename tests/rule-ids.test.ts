@@ -21,22 +21,33 @@ export function ruleRows(markdown: string): RuleRow[] {
   });
 }
 
+/** Modifiers under which Vitest does not run the test, or runs it only conditionally. */
+const NOT_RUN = new Set(['skip', 'todo', 'skipIf', 'runIf']);
+
 /**
- * Ids named in the titles of real describe()/it()/test() calls, found by parsing the file.
- * Comments and strings that merely look like a call (fixtures) do not count.
+ * Ids named in the titles of describe()/it()/test() calls that Vitest runs, found by parsing the
+ * file. Comments, fixture strings that only look like a call, `.skip`/`.todo` tests and anything
+ * inside a skipped describe do not count.
  */
 export function idsInTitles(source: string): Set<string> {
   const ids = new Set<string>();
   const visit = (node: ts.Node): void => {
     if (ts.isCallExpression(node)) {
+      // Walk back from e.g. describe.each([...])('title') or it.skip('title') to the base name.
+      const modifiers: string[] = [];
       let callee: ts.Expression = node.expression;
-      // describe.each(...)(...) and it.skip(...) style callees: walk back to the base name.
       while (ts.isPropertyAccessExpression(callee) || ts.isCallExpression(callee)) {
-        callee = ts.isPropertyAccessExpression(callee) ? callee.expression : callee.expression;
+        if (ts.isPropertyAccessExpression(callee)) {
+          modifiers.push(callee.name.text);
+          callee = callee.expression;
+        } else callee = callee.expression;
       }
-      const title = node.arguments[0];
-      if (ts.isIdentifier(callee) && ['describe', 'it', 'test'].includes(callee.text) && title !== undefined && ts.isStringLiteralLike(title)) {
-        for (const id of title.text.match(ID) ?? []) ids.add(id);
+      if (ts.isIdentifier(callee) && ['describe', 'it', 'test'].includes(callee.text)) {
+        if (modifiers.some((m) => NOT_RUN.has(m))) return; // nothing under a skipped call counts
+        const title = node.arguments[0];
+        if (title !== undefined && ts.isStringLiteralLike(title)) {
+          for (const id of title.text.match(ID) ?? []) ids.add(id);
+        }
       }
     }
     ts.forEachChild(node, visit);
@@ -83,6 +94,11 @@ describe('the rule-id check itself', () => {
   it('ignores ids in comments and in strings that only look like a test', () => {
     const src = "// R-07\n/* it('R-06 z') */\nconst f = \"describe('R-05 fixture')\";\ndescribe('R-08 x', () => { it('I-1 y', () => {}) })";
     expect([...idsInTitles(src)]).toEqual(['R-08', 'I-1']);
+  });
+
+  it('does not count skipped or todo tests, or tests inside a skipped describe', () => {
+    const src = "it.skip('R-01 a', () => {}); test.todo('R-02 b'); describe.skip('x', () => { it('R-03 c', () => {}) }); it.only('R-04 d', () => {})";
+    expect([...idsInTitles(src)]).toEqual(['R-04']);
   });
 
   it('reads ids with three digits', () => {
