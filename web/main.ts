@@ -427,9 +427,10 @@ function enterBeat(beat: Beat, now: number): void {
     if (e.type === 'trigger') app.firing.set(e.uid, 1);
     if (e.type === 'damage') {
       app.shownHp[e.target] = e.hpAfter;
-      if (!motionQuery.matches) app.floaters.push({ side: e.target, slot: e.slot, kind: 'damage', text: `−${e.amount}`, born: now });
+      // Shown with or without motion: reduced motion removes movement (see drawFloaters), not information.
+      app.floaters.push({ side: e.target, slot: e.slot, kind: 'damage', text: `−${e.amount}`, born: now });
     }
-    if (e.type === 'block' && !motionQuery.matches) {
+    if (e.type === 'block') {
       app.floaters.push({ side: e.side, slot: e.slot, kind: 'block', text: `Blocked ${e.blocked}`, born: now });
     }
   }

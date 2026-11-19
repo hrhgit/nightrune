@@ -388,23 +388,25 @@ function drawCursorTrack(ctx: CanvasRenderingContext2D, scene: Scene): void {
   ctx.globalAlpha = 1;
 }
 
-function drawFloaters(ctx: CanvasRenderingContext2D, floaters: readonly Floater[]): void {
+/** With motion off the numbers stay still and fully opaque until they are removed. */
+function drawFloaters(ctx: CanvasRenderingContext2D, floaters: readonly Floater[], motion: boolean): void {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (const f of floaters) {
     const r = slotRect(f.side, f.slot);
-    ctx.globalAlpha = Math.max(0, 1 - f.age);
+    const age = motion ? f.age : 0;
+    ctx.globalAlpha = Math.max(0, 1 - age);
     ctx.shadowColor = 'rgba(0,0,0,0.8)';
     ctx.shadowBlur = 8;
     if (f.kind === 'damage') {
       ctx.font = '700 30px "Alegreya", serif';
       ctx.fillStyle = PALETTE.flame;
-      ctx.fillText(f.text, r.x + r.w / 2, r.y + r.h * 0.4 - f.age * 46);
+      ctx.fillText(f.text, r.x + r.w / 2, r.y + r.h * 0.4 - age * 46);
     } else {
       // Block text sits just above the stone so it never covers the rune or a damage number.
       ctx.font = '700 22px "Alegreya Sans", sans-serif';
       ctx.fillStyle = DIRECTION_GLOW.defense;
-      ctx.fillText(f.text, r.x + r.w / 2, r.y - 14 - f.age * 24);
+      ctx.fillText(f.text, r.x + r.w / 2, r.y - 14 - age * 24);
     }
   }
   ctx.shadowBlur = 0;
@@ -431,5 +433,5 @@ export function drawBoard(ctx: CanvasRenderingContext2D, scene: Scene): void {
   }
   drawHp(ctx, scene.enemyName, scene.hp.enemy, 40, 60);
   drawHp(ctx, 'You', scene.hp.player, 40, 492);
-  drawFloaters(ctx, scene.floaters);
+  drawFloaters(ctx, scene.floaters, scene.motion);
 }
