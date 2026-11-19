@@ -2,7 +2,7 @@
 
 Every project rule and how it is enforced. Preference order: type → lint → test → runtime validation → Qodo review rule → text in AGENTS.md. A rule only counts as enforced if the named check fails when the rule is broken.
 
-Snapshot: playable web battle (issue #1), before any daily ticket. AGENTS.md does not exist yet.
+Snapshot: after T01 Parry (issue #3). AGENTS.md does not exist yet.
 
 ## Product rules
 
@@ -13,7 +13,7 @@ Snapshot: playable web battle (issue #1), before any daily ticket. AGENTS.md doe
 | Refused actions do not change state | type: states are `readonly`. test: `tests/placement.test.ts` deep-compares the state before and after each refused action (5 reasons) | mutation check on this branch: reversing the hand in place before validation made 2 refusal tests fail | — |
 | Card conservation and limits (I-1, I-4) | test: `tests/seed.test.ts` checks after every action of 200 seeded greedy games: total cards = deck size, uids unique, energy in [0, 3], hand ≤ 4, HP ≥ 0 | mutation check on this branch: letting a card be placed with 1 missing energy made this test and an R-05 test fail | Not yet part of a simulation command (T10) |
 | Numbers live only in the card table | partial: card/enemy/deck/rule numbers are in `data/`, typed with `satisfies`; UI reads them only through the engine (lint above) | none for numeric literals | No lint against numeric literals in engine effect code; no runtime table validation (T14) |
-| Every effect kind and event is handled | type: `assertNever` in every effect, action, event and refusal switch (engine and `present/text.ts`) | `tsc` fails if a new union member is unhandled | — |
+| Every effect kind and event is handled | type: `assertNever` in every effect, action, event and refusal switch (engine, `present/text.ts`, and the round-animation beat builder in `web/main.ts`) | T01 (issue #3): adding the `block` effect and event made `tsc` fail in 3 places in `present/text.ts` until handled; removing the `block` case from the beat builder makes `tsc -p web` fail | The beat builder was an if/else chain whose final branch would have silently treated `block` as next-round placement; converted to a switch in T01 |
 | Every card has a rune (part of A-1) | test: `tests/runes.test.ts` iterates the card table | mutation check on this branch: renaming the `dummy-swing` rune key made the test fail | Contrast and text-overflow checks (T19) |
 | Every rule has an id; rule changes update RULES.md and tests | text only | none | Needs a script that maps rule ids in RULES.md to test names |
 | No claims of "balanced", "fun" or "bug-free" | text only | none | Candidate for a lint over posts/docs |

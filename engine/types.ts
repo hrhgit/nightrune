@@ -15,7 +15,11 @@ export type Owner = 'player' | 'enemy';
  * Code that handles effects must switch on `kind` and end with `assertNever`,
  * so adding a new effect kind fails to compile until every handler covers it.
  */
-export type Effect = { readonly kind: 'attack'; readonly amount: LevelValues };
+export type Effect =
+  /** Damage to the opposing card's side in the same slot. */
+  | { readonly kind: 'attack'; readonly amount: LevelValues }
+  /** Cancels that much of the opposing attack in the same slot only (R-08). */
+  | { readonly kind: 'block'; readonly amount: LevelValues };
 
 export interface CardDef {
   readonly name: string;
@@ -123,6 +127,15 @@ export type GameEvent =
       readonly side: Owner;
       readonly uid: string;
       readonly cardId: string;
+    }
+  | {
+      /** R-08: `side` blocked `blocked` of the `incoming` attack in this slot. Emitted only when blocked > 0. */
+      readonly type: 'block';
+      readonly round: number;
+      readonly slot: number;
+      readonly side: Owner;
+      readonly incoming: number;
+      readonly blocked: number;
     }
   | {
       readonly type: 'damage';

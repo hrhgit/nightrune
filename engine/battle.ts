@@ -217,14 +217,18 @@ function discardHand(state: BattleState, events: GameEvent[]): BattleState {
 /** What one card adds to its slot's head-to-head resolution (R-08). */
 interface Contribution {
   attack: number;
+  block: number;
 }
 
 function contributionOf(card: CardInstance): Contribution {
   const effect = cardDef(card.cardId).effect;
   const kind = effect.kind;
+  const value = effect.amount[card.level - 1] ?? 0;
   switch (kind) {
     case 'attack':
-      return { attack: effect.amount[card.level - 1] ?? 0 };
+      return { attack: value, block: 0 };
+    case 'block':
+      return { attack: 0, block: value };
     default:
       return assertNever(kind);
   }
@@ -247,7 +251,7 @@ function runRound(state: BattleState, events: GameEvent[]): BattleState {
   // R-07: the cursor walks slots 1..N; both sides' cards in a slot fire together.
   for (let i = 0; i < RULES.lineLength; i++) {
     const slot = i + 1;
-    const totals: Record<Owner, Contribution> = { player: { attack: 0 }, enemy: { attack: 0 } };
+    const totals: Record<Owner, Contribution> = { player: { attack: 0, block: 0 }, enemy: { attack: 0, block: 0 } };
 
     for (const [side, line] of [
       ['player', player.line],
@@ -256,13 +260,21 @@ function runRound(state: BattleState, events: GameEvent[]): BattleState {
       const card = line[i] ?? null;
       if (card === null) continue;
       events.push({ type: 'trigger', round, slot, side, uid: card.uid, cardId: card.cardId });
-      totals[side].attack += contributionOf(card).attack;
+      const c = contributionOf(card);
+      totals[side].attack += c.attack;
+      totals[side].block += c.block;
     }
 
-    // R-08: damage taken = opposing attack in this slot; both sides lose HP at the same time.
-    // (Block from the same slot is subtracted once defense cards exist — T01.)
-    const toEnemy = totals.player.attack;
-    const toPlayer = totals.enemy.attack;
+    // R-08: damage taken = opposing attack in this slot − own block in this slot, minimum 0.
+    // Block is local to this slot: `totals` is rebuilt for every slot, so nothing carries over.
+    for (const side of ['player', 'enemy'] as const) {
+      const incoming = totals[side === 'player' ? 'enemy' : 'player'].attack;
+      const blocked = Math.min(incoming, totals[side].block);
+      if (blocked > 0) events.push({ type: 'block', round, slot, side, incoming, blocked });
+    }
+    const toEnemy = Math.max(0, totals.player.attack - totals.enemy.block);
+    const toPlayer = Math.max(0, totals.enemy.attack - totals.player.block);
+    // Both sides lose HP at the same time.
     if (toEnemy > 0) {
       enemy = { ...enemy, hp: Math.max(0, enemy.hp - toEnemy) };
       events.push({ type: 'damage', round, slot, target: 'enemy', amount: toEnemy, hpAfter: enemy.hp });

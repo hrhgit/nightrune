@@ -20,6 +20,21 @@ export const RUNES: Readonly<Record<string, readonly RuneStroke[]>> = {
       [0.55, -0.35],
     ],
   ],
+  // A raised guard: a kite shield outline with a bar across it.
+  parry: [
+    [
+      [-0.55, -0.65],
+      [0.55, -0.65],
+      [0.5, 0.05],
+      [0, 0.72],
+      [-0.5, 0.05],
+      [-0.55, -0.65],
+    ],
+    [
+      [-0.3, -0.15],
+      [0.3, -0.15],
+    ],
+  ],
   // A straw flail: a stem with a hooked head.
   'dummy-swing': [
     [
