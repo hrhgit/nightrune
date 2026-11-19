@@ -14,7 +14,7 @@ cat > "$PLIST" <<PL
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>Label</key><string>$LABEL</string>
-  <key>ProgramArguments</key><array><string>/bin/zsh</string><string>$REPO/factory/poll.sh</string></array>
+  <key>ProgramArguments</key><array><string>/bin/zsh</string><string>-l</string><string>$REPO/factory/poll.sh</string></array>
   <key>EnvironmentVariables</key><dict><key>NIGHTRUNE_REPO</key><string>$REPO</string></dict>
   <key>StartInterval</key><integer>600</integer>
   <key>StandardOutPath</key><string>$HOME/.nightrune-factory/poll.log</string>
