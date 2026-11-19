@@ -51,7 +51,7 @@ describe('T05 Echo card data', () => {
 });
 
 describe('R-13 a re-fired card counts in the current slot', () => {
-  it("a re-fired Slash adds its attack to the Echo's slot, not to its own", () => {
+  it("R-12.1 R-13.1 R-13.2 R-08.1 a re-fired Slash adds its attack to the Echo's slot, not to its own", () => {
     const { events } = run(battle(['slash', 'echo', null, null]));
     expect(of(events, 'refire')).toEqual([
       expect.objectContaining({ slot: 2, sourceSlot: 2, cardId: 'echo', targetSlot: 1, targetCardId: 'slash' }),
@@ -60,7 +60,7 @@ describe('R-13 a re-fired card counts in the current slot', () => {
     expect(enemyDamageIn(events, 2)).toBe(SLASH);
   });
 
-  it("a re-fired Parry adds its block to the Echo's slot", () => {
+  it("R-13.2 R-08.1 a re-fired Parry adds its block to the Echo's slot", () => {
     const { events } = run(battle(['parry', 'echo', null, null]));
     // The dummy swings in slot 2; the Parry in slot 1 blocks nothing there unless Echo fires it again in slot 2.
     expect(of(events, 'block')).toEqual([expect.objectContaining({ slot: 2, side: 'player', incoming: SWING, blocked: Math.min(SWING, PARRY) })]);
@@ -75,20 +75,20 @@ describe('R-13 a re-fired card counts in the current slot', () => {
 });
 
 describe('R-12 R-13 Echo fizzles instead of skipping', () => {
-  it('Echo in slot 1 fizzles: no previous slot, no wrap-around to slot 4', () => {
+  it('R-12.5 Echo in slot 1 fizzles: no previous slot, no wrap-around to slot 4', () => {
     const { events } = run(battle(['echo', null, null, 'slash']));
     expect(of(events, 'fizzle')).toEqual([expect.objectContaining({ slot: 1, sourceSlot: 1, target: 'previous', targetSlot: null, reason: 'no-slot' })]);
     expect(of(events, 'refire')).toEqual([]);
     expect(enemyDamageIn(events, 1)).toBe(0);
   });
 
-  it('Echo after an empty slot fizzles and does not reach the card before it', () => {
+  it('R-12.2 R-12.4 Echo after an empty slot fizzles and does not reach the card before it', () => {
     const { events } = run(battle(['slash', null, 'echo', null]));
     expect(of(events, 'fizzle')).toEqual([expect.objectContaining({ slot: 3, targetSlot: 2, reason: 'empty-slot' })]);
     expect(enemyDamageIn(events, 3)).toBe(0);
   });
 
-  it('two Echoes in a row: the second re-fires the first, whose target was already re-fired this round, so it fizzles', () => {
+  it('R-13.3 two Echoes in a row: the second re-fires the first, whose target was already re-fired this round, so it fizzles', () => {
     const { events } = run(battle(['slash', 'echo', 'echo', null]));
     expect(of(events, 'refire').map((e) => [e.slot, e.sourceSlot, e.targetSlot])).toEqual([
       [2, 2, 1],
@@ -99,7 +99,7 @@ describe('R-12 R-13 Echo fizzles instead of skipping', () => {
     expect(enemyDamageIn(events, 3)).toBe(0);
   });
 
-  it('the once-per-round limit starts again next round', () => {
+  it('R-13.4 the once-per-round limit starts again next round', () => {
     const r1 = run(battle(['slash', 'echo', 'echo', null]));
     const r2 = run(r1.state);
     expect(of(r2.events, 'refire').map((e) => [e.slot, e.targetSlot])).toEqual([
@@ -109,7 +109,7 @@ describe('R-12 R-13 Echo fizzles instead of skipping', () => {
     expect(enemyDamageIn(r2.events, 2)).toBe(SLASH);
   });
 
-  it('Whetstone then Echo: the re-fired Whetstone targets the Echo, which has no value, so it fizzles', () => {
+  it('R-12.3 (growth part) Whetstone then Echo: the re-fired Whetstone targets the Echo, which has no value, so it fizzles', () => {
     const { state, events } = run(battle(['whetstone', 'echo', null, null]));
     expect(of(events, 'refire')).toEqual([expect.objectContaining({ slot: 2, targetSlot: 1, targetCardId: 'whetstone' })]);
     expect(of(events, 'fizzle')).toEqual([

@@ -19,7 +19,7 @@ describe('R-16 the seeded generator', () => {
     expect(input).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
   });
 
-  it('keeps the shuffle order for seed 1 stable, so recorded seeds keep replaying the same game', () => {
+  it('R-16.1 keeps the shuffle order for seed 1 stable, so recorded seeds keep replaying the same game', () => {
     expect(shuffle([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], seedRng(1)).items).toEqual([7, 8, 3, 2, 1, 5, 9, 4, 0, 6]);
   });
 
@@ -31,7 +31,7 @@ describe('R-16 the seeded generator', () => {
 });
 
 describe('R-16 I-6 same seed and same actions give the same result', () => {
-  it('replays identically', () => {
+  it('R-16.3 replays identically', () => {
     for (const seed of [0, 1, 7, 123456789, 2 ** 32 - 1]) {
       const a = startBattle({ enemyId: 'training-dummy', seed });
       const b = startBattle({ enemyId: 'training-dummy', seed });

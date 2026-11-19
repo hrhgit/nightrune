@@ -49,7 +49,7 @@ describe('T04 Whetstone card data', () => {
 });
 
 describe('R-12 R-14 Whetstone gives the next card growth', () => {
-  it('the next card fires with its new value in the same round', () => {
+  it('R-12.1 R-14.2 the next card fires with its new value in the same round', () => {
     const { state, events } = run(battle(['whetstone', 'slash', null, null]));
     expect(of(events, 'grow')).toEqual([
       expect.objectContaining({ slot: 1, side: 'player', targetSlot: 2, targetCardId: 'slash', amount: WHET, valueAfter: SLASH + WHET }),
@@ -60,7 +60,7 @@ describe('R-12 R-14 Whetstone gives the next card growth', () => {
     expect(cardValue(slotCard(state, 2))).toBe(SLASH + WHET);
   });
 
-  it('growth lasts the battle and adds up each round the Whetstone fires', () => {
+  it('R-14.2 growth lasts the battle and adds up each round the Whetstone fires', () => {
     const r1 = run(battle(['whetstone', 'slash', null, null]));
     const r2 = run(r1.state);
     expect(of(r2.events, 'grow')[0]?.valueAfter).toBe(SLASH + 2 * WHET);
@@ -89,14 +89,14 @@ describe('R-12 R-14 Whetstone gives the next card growth', () => {
 });
 
 describe('R-12 a targeted effect fizzles instead of skipping', () => {
-  it('Whetstone in slot 4 fizzles: no next slot, no wrap-around to slot 1', () => {
+  it('R-12.5 Whetstone in slot 4 fizzles: no next slot, no wrap-around to slot 1', () => {
     const { state, events } = run(battle(['slash', null, null, 'whetstone']));
     expect(of(events, 'fizzle')).toEqual([expect.objectContaining({ slot: 4, reason: 'no-slot' })]);
     expect(of(events, 'grow')).toEqual([]);
     expect(slotCard(state, 1).growth).toBe(0);
   });
 
-  it('Whetstone before an empty slot fizzles and does not reach the card after it', () => {
+  it('R-12.2 R-12.4 Whetstone before an empty slot fizzles and does not reach the card after it', () => {
     const { state, events } = run(battle(['whetstone', null, 'slash', null]));
     expect(of(events, 'fizzle')).toEqual([expect.objectContaining({ slot: 1, reason: 'empty-slot' })]);
     expect(slotCard(state, 3).growth).toBe(0);
@@ -104,7 +104,7 @@ describe('R-12 a targeted effect fizzles instead of skipping', () => {
 });
 
 describe('R-14 growth stays with the card through discard, draw and placement', () => {
-  it('a grown Slash replaced, reshuffled, drawn and placed again keeps its growth', () => {
+  it('R-14.3 a grown Slash replaced, reshuffled, drawn and placed again keeps its growth', () => {
     // Deck of 4 Parry: the hand is always Parry until the replaced Slash is shuffled back in.
     let state = battle(['whetstone', 'slash', null, null], ['parry', 'parry', 'parry', 'parry']);
     const slash = slotCard(state, 2);
