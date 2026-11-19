@@ -35,7 +35,7 @@ export interface CardDef {
   readonly name: string;
   readonly direction: Direction;
   /** Energy cost to place the card (R-05). Enemy cards ignore it (R-17). */
-  readonly cost: 0 | 1 | 2 | 3;
+  readonly cost: number;
   readonly owner: Owner;
   readonly effect: Effect;
 }

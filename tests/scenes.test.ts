@@ -44,6 +44,13 @@ describe('scene preview definitions', () => {
         }
       });
 
+      it('R-17.5: enemy cards are at level 1', () => {
+        for (const ref of spec.enemyLine) {
+          const c = card(ref);
+          if (c !== null) expect(c.level).toBe(1);
+        }
+      });
+
       it('points only at slots and hand cards that exist', () => {
         for (const f of spec.firing ?? []) expect(card((f.side === 'player' ? spec.playerLine : spec.enemyLine)[f.slot - 1])).not.toBeNull();
         for (const t of [...(spec.targets ?? []), ...(spec.hover === undefined ? [] : [spec.hover])]) expect(t >= 1 && t <= 4).toBe(true);

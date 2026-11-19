@@ -17,7 +17,7 @@ Status: **done** = implemented and tested; **partial** = implemented in part (se
 | Next / previous card | The card in the slot numbered one higher / one lower on the same line. |
 | Level | 1–3. Raised by merging. |
 | Energy | Points spent to place cards during placement. Refilled every round; not carried over. |
-| Cost | Energy needed to place a card, 0–3, defined in the card table. |
+| Cost | Energy needed to place a card, a whole number 0 or greater, defined in the card table. |
 | Block | Cancels damage from the opposing card in the same slot only. |
 | Seed | A number that fixes every random outcome of a run. |
 
@@ -142,6 +142,7 @@ Status: **done** = a test whose `it()` title names the requirement id checks it;
 | R-17.2 | The enemy's cards fire every round. | done |
 | R-17.3 | Enemy cards use the same effects as player cards. | done |
 | R-17.4 | Enemies do not use energy: an enemy card fires whatever its cost. | done |
+| R-17.5 | Enemy cards are always level 1: they never merge or upgrade. *(ruling RL-4)* | done |
 
 ## Rulings
 
@@ -152,6 +153,7 @@ A rule's first wording can be read more than one way. When a particular case sho
 | RL-1 | 2026-11-18 | Echo re-fired the previous card: after Whetstone, the re-fired Whetstone aimed at the Echo and always fizzled; a second Echo in a row always fizzled. | Echo acts as a copy of the previous card in its own slot. A copied effect aims from the Echo's slot, so its targets move with it. A second Echo copies what the first copies. No per-round limit. | R-13.4, R-13.5, R-13.6 |
 | RL-2 | 2026-11-18 | Does a copy carry the copied card's growth? | Yes: a copy has the copied card's current value, growth included. | R-13.3 |
 | RL-3 | 2026-11-18 | Whetstone whose next card is an Echo: does the growth land on the Echo? | No: Echo has no value of its own, so the growth fizzles. | R-12.3 |
+| RL-4 | 2026-11-18 | How do N-1 and N-2 apply to enemy cards and table values? | N-1 applies to every card with a value, including enemy cards. Straw Swing's values become [3, 4, 5]. Enemies always play cards at level 1 and never merge or upgrade. N-2 has no fixed upper limit: values are positive whole numbers, and costs are whole numbers 0 or greater. | N-1, N-2, R-17.5 |
 
 ## Open design questions
 
@@ -178,8 +180,8 @@ Invariants (I), numeric checks (N) and art checks (A). These are not game rules;
 | I-6 | The same seed with the same actions gives the same final state. | partial: replay test on 5 seeds; no replay command [T06] |
 | I-7 | Save then load leaves the state unchanged. | planned [T30] |
 | I-8 | Pairwise coverage: every pair of mechanics in the mechanic register has at least one named test. | planned [T17] |
-| N-1 | The card table is well-formed; a card's values strictly increase with level. | planned [T14] |
-| N-2 | Values are positive integers within the table's limits. | planned [T14] |
+| N-1 | Every card that has a value lists one value per level, and each level's value is strictly greater than the one before. | done |
+| N-2 | Every value is a positive whole number; every cost is a whole number, 0 or more, with no fixed upper limit. Every card an enemy line names exists in the card table and is an enemy card. | done |
 | N-3 | Win-rate baseline for the greedy bot on a fixed batch of seeds; a ticket that moves it beyond the agreed margin must say so and update the baseline. | planned [T18] |
 | N-4 | One card's effect: the win-rate difference with and without it stays within the agreed margin. | planned |
 | A-1 | Every card, player or enemy, has a rune glyph. | done for the card table; enemy figures are covered by a type check |

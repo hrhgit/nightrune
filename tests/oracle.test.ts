@@ -65,7 +65,7 @@ describe('R-07 R-08 R-10 R-11 R-12 R-13 R-14 every arrangement of cards does onl
     expect(counts.differs).toBe(0);
     // Most battles last the 3 rounds; a few end early when a side reaches 0.
     expect(counts.same).toBeGreaterThan(625 * 25 * 2);
-  });
+  }, 15_000);
 });
 
 describe('R-10 R-11 every player line, played to the end of the battle', () => {

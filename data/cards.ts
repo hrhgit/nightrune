@@ -37,7 +37,7 @@ export const CARDS = {
     direction: 'attack',
     cost: 0,
     owner: 'enemy',
-    effect: { kind: 'attack', amount: [3, 3, 3] },
+    effect: { kind: 'attack', amount: [3, 4, 5] },
   },
 } as const satisfies Record<string, CardDef>;
 
