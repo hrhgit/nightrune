@@ -3,15 +3,15 @@
 import type { CardDef } from '../engine/types.ts';
 
 export const CARDS = {
-  strike: {
-    name: 'Stamp Press',
+  slash: {
+    name: 'Slash',
     direction: 'attack',
     cost: 1,
     owner: 'player',
     effect: { kind: 'attack', amount: [4, 6, 9] },
   },
-  piston: {
-    name: 'Piston',
+  'dummy-swing': {
+    name: 'Straw Swing',
     direction: 'attack',
     cost: 0,
     owner: 'enemy',

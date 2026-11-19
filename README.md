@@ -1,6 +1,6 @@
-# Beltdeck
+# Nightrune
 
-A single-player card battler where you place cards on a 4-slot conveyor line. Every round the cursor sweeps slots 1→4 and both lines fire head to head: your attack minus the enemy's block in the same slot, both sides hit at once.
+A single-player fantasy card battler. You set runestones on a 4-position battle line; every round the turn order sweeps positions 1→4 and both lines strike head to head: your attack minus the enemy's block at the same position, both sides hit at once.
 
 This repo is also an entry for the [Qodo Software Factory Hackathon](https://hackathon.qodo.ai/): after this scaffold, each game feature is a GitHub issue that goes through a factory of coding agent → checks → Qodo review → pull request.
 

@@ -7,7 +7,7 @@ import { createBattle, runToEnd, type GameEvent } from '../engine/index.ts';
 
 const json = process.argv.includes('--json');
 
-const initial = createBattle({ enemyId: 'training-rig', playerLine: SCAFFOLD_PLAYER_LINE });
+const initial = createBattle({ enemyId: 'training-dummy', playerLine: SCAFFOLD_PLAYER_LINE });
 const { state, events } = runToEnd(initial);
 
 function cardName(id: string): string {
@@ -35,7 +35,7 @@ if (json) {
   console.log(JSON.stringify({ events, final: state }, null, 2));
 } else {
   const enemy = ENEMIES[initial.enemyId as keyof typeof ENEMIES];
-  console.log(`Beltdeck scaffold battle vs ${enemy.name} (hp ${enemy.hp})`);
+  console.log(`Nightrune scaffold battle vs ${enemy.name} (hp ${enemy.hp})`);
   console.log(`Player line: ${lineText(SCAFFOLD_PLAYER_LINE)}`);
   console.log(`Enemy line:  ${lineText(enemy.line)}`);
   for (const e of events) console.log(describe(e));

@@ -1,4 +1,4 @@
-# Beltdeck rulebook (v0)
+# Nightrune rulebook (v0)
 
 Every rule has an id. A change to a rule must change this file **and** the tests that name the rule id in the same pull request.
 All numbers below are placeholders; the source of truth for numbers is `data/` (`cards.ts`, `enemies.ts`, `rules.ts`).
@@ -9,10 +9,10 @@ Status: **done** = implemented and tested; **partial** = implemented in part (se
 
 | Term | Meaning |
 |---|---|
-| Line | A row of 4 slots, numbered 1–4. The player has one, the enemy has one. |
+| Line | The battle line: 4 positions (slots), numbered 1–4. The player has one, the enemy has one. |
 | Round | One placement phase followed by one run phase. |
 | Placement | The player draws and places cards on the line. |
-| Run | Both lines fire automatically, slot by slot. No player input. |
+| Run | Both lines fire automatically, slot by slot, following the turn order cursor. No player input. |
 | Fire | A card performs its effect once. |
 | Next / previous card | The card in the slot numbered one higher / one lower on the same line. |
 | Level | 1–3. Raised by merging. |

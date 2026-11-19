@@ -1,8 +1,8 @@
 {
-  "name": "beltdeck",
+  "name": "nightrune",
   "version": "0.0.0",
   "private": true,
-  "description": "A seeded, single-player deckbuilding card battler where cards fire in order along a 4-slot conveyor line.",
+  "description": "A seeded fantasy card battler where runestones on a 4-position battle line strike head to head.",
   "type": "module",
   "license": "MIT",
   "engines": {

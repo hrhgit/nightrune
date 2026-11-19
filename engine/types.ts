@@ -1,4 +1,4 @@
-// Core data types for the Beltdeck engine.
+// Core data types for the Nightrune engine.
 // The engine is pure: state in, state + events out. No UI, clock, network or Math.random.
 
 /** Per-level values for a card effect: index 0 = level 1, 1 = level 2, 2 = level 3. */
