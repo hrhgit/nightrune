@@ -930,6 +930,11 @@ function reactionOf(side: Owner, strikes: readonly Strike[], motion: boolean): R
   return { hit, block };
 }
 
+/** True while a damage bolt against this side has not reached the figure yet (motion only). */
+function hitInFlight(side: Owner, impacts: readonly Impact[], motion: boolean): boolean {
+  return motion && impacts.some(({ event: e, age }) => e.type === 'damage' && e.target === side && age < PHASE.through);
+}
+
 /** How strongly to show the pale "just lost" band on a side's HP bar, from damage against that side. */
 function hpLostFade(side: Owner, impacts: readonly Impact[], motion: boolean): number {
   let fade = 0;
@@ -966,7 +971,10 @@ export function drawBoard(ctx: CanvasRenderingContext2D, scene: Scene): void {
   drawWayfarer(ctx, { ...FIGURE.player, time: scene.time, motion: scene.motion, reaction: reactionOf('player', strikes, scene.motion) });
   for (const side of ['enemy', 'player'] as const) {
     const hp = scene.hp[side];
-    drawHp(ctx, side, side === 'player' ? 'You' : scene.enemyName, hp, hp.before ?? null, hpLostFade(side, scene.impacts, scene.motion));
+    // Until the bolt reaches the figure, keep showing the HP from before the hit.
+    const landed = !hitInFlight(side, scene.impacts, scene.motion) || hp.before === undefined;
+    const shown = landed ? hp : { now: hp.before ?? hp.now, max: hp.max };
+    drawHp(ctx, side, side === 'player' ? 'You' : scene.enemyName, shown, landed ? (hp.before ?? null) : null, hpLostFade(side, scene.impacts, scene.motion));
   }
   drawStrikes(ctx, strikes, scene.motion);
 }

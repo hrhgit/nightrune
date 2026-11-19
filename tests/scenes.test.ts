@@ -61,12 +61,14 @@ describe('scene preview definitions', () => {
         }
       });
 
-      it('HP shown matches the damage events: now is hpAfter, before minus now is the amount', () => {
+      it('HP shown matches the damage events: now is hpAfter, before is given and before minus now is the amount', () => {
         for (const { event: e } of spec.impacts ?? []) {
           if (e.type !== 'damage') continue;
           const hp = spec.hp?.[e.target];
           expect(hp?.[0]).toBe(e.hpAfter);
-          if (hp?.[2] !== undefined) expect(hp[2] - hp[0]).toBe(e.amount);
+          // Required: without it the preview draws no lost-HP band for the hit.
+          expect(hp?.[2]).toBeDefined();
+          expect((hp?.[2] ?? 0) - (hp?.[0] ?? 0)).toBe(e.amount);
         }
       });
     });

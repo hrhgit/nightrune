@@ -434,8 +434,8 @@ function finishAnimation(): void {
   app.shownHp = { player: anim.after.player.hp, enemy: anim.after.enemy.hp };
   app.cursor = null;
   app.firing = new Map();
-  app.impacts = [];
-  app.hpBefore = { player: null, enemy: null };
+  // Impacts are left to finish on their own (tick drops them when they expire), so the last
+  // hit of a round, including the one that ends the battle, gets its full time on screen.
   if (app.state.outcome === 'ongoing') {
     setHint('New hand drawn. Choose a card, then a slot.');
   } else {
