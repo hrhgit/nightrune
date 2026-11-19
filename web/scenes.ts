@@ -172,19 +172,19 @@ export const SCENES: readonly SceneSpec[] = [
   {
     id: 'partial-block',
     title: 'Partial block',
-    look: 'Slot 4 firing: ward with "Blocked 6" on the Parry, a thinner bolt goes on to the wayfarer for 3.',
+    look: 'Slot 4 firing: ward with "Blocked 4" on the Parry, a thinner bolt goes on to the wayfarer for 1. The enemy Slash was grown by the Whetstone before it; enemy cards stay level 1 (R-17.5).',
     seed: 13,
-    enemyLine: [null, 'dummy-swing', null, ['slash', 3]],
-    playerLine: [null, null, null, ['parry', 2]],
-    hp: { player: [27, 30, 30] },
+    enemyLine: [null, 'dummy-swing', 'whetstone', ['slash', 1, 1]],
+    playerLine: [null, null, null, 'parry'],
+    hp: { player: [29, 30, 30] },
     cursor: 4,
     firing: [
       { side: 'enemy', slot: 4, glow: 1 },
       { side: 'player', slot: 4, glow: 1 },
     ],
     impacts: [
-      { event: { type: 'block', round: 2, slot: 4, side: 'player', incoming: 9, blocked: 6 }, age: 0.42 },
-      { event: { type: 'damage', round: 2, slot: 4, target: 'player', amount: 3, hpAfter: 27 }, age: 0.42 },
+      { event: { type: 'block', round: 2, slot: 4, side: 'player', incoming: 5, blocked: 4 }, age: 0.42 },
+      { event: { type: 'damage', round: 2, slot: 4, target: 'player', amount: 1, hpAfter: 29 }, age: 0.42 },
     ],
   },
   {
@@ -202,9 +202,9 @@ export const SCENES: readonly SceneSpec[] = [
   {
     id: 'full-lines',
     title: 'Full lines, top levels',
-    look: 'Every slot filled, level 3 values, long names, no overlap between stones.',
+    look: 'Every slot filled, level 3 player values, long names, no overlap between stones. Enemy cards stay level 1 (R-17.5).',
     seed: 3,
-    enemyLine: [['dummy-swing', 3], ['dummy-swing', 3], ['dummy-swing', 3], ['dummy-swing', 3]],
+    enemyLine: ['dummy-swing', 'dummy-swing', 'dummy-swing', 'dummy-swing'],
     playerLine: [['slash', 3], ['parry', 3], ['slash', 3], ['parry', 3]],
     hand: [['slash', 3], ['parry', 3]],
   },
