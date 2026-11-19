@@ -86,3 +86,7 @@ These cannot be checked by a command yet, so reviewers carry them:
 ## How work flows
 
 One GitHub issue per change, with acceptance criteria. One branch and one PR per issue; the PR links the issue and repeats its acceptance criteria. Qodo reviews the PR; a review only counts if it covers the PR's head commit. A person merges. When a person corrects an agent, the correction goes in `factory/corrections.md` with the check it became.
+
+### The factory runner
+
+`npm run factory` (also run every 10 minutes by a local launchd job) takes the oldest open issue labelled `ready-for-agent`, and needs exactly one `area:` label and an "Acceptance criteria" list. It gives the issue to that area's coding agent in its own worktree (`area:engine` → Codex, `area:web` → Claude Code; paths and models in `factory/config.json`), fails the run if a file outside the area changes, runs `npm run check` (up to 3 attempts), opens a PR, waits for Qodo's review of the PR head, and sends open action-required and recommended findings back to the agent (up to 3 rounds). An agent that finds a criterion ambiguous writes `.factory-question.md` and stops instead of guessing. The verdict (`READY`, `NEEDS_FIX`, `NEEDS_HUMAN`, `NOT_DONE`) is computed by `factory/verdict.ts` from those facts, written to `factory/runs/`, commented on the issue, and shown as a label (`agent-done` or `agent-needs-help`). The runner never merges.

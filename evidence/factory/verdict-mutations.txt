@@ -1,0 +1,21 @@
+## mutation: accept a review of an older commit
+     × NOT_DONE when the review covers an older commit, is still running, or never came 3ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 9 passed (10)
+
+## mutation: treat a pending finding as closed
+     × flags informational findings to the person but still READY 3ms
+     × NEEDS_FIX for failing checks or an open action-required or recommended finding while retries remain 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 8 passed (10)
+
+## mutation: ignore a stalled fix loop
+     × NEEDS_HUMAN at the retry limit, on a stall, a question, a change outside the area, no change, or a bad ticket 3ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 9 passed (10)
+
+## mutation: allow one fix round past the limit
+     × NEEDS_HUMAN at the retry limit, on a stall, a question, a change outside the area, no change, or a bad ticket 3ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 9 passed (10)
+
