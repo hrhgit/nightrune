@@ -189,7 +189,8 @@ export type GameEvent =
   | {
       /**
        * R-13: the card in `sourceSlot` copies the card in `targetSlot` and acts, in its own slot, as
-       * `asCardId` (the card at the end of a chain of copies; R-13.5).
+       * `asCardId` (the card at the end of a chain of copies; R-13.5), which is `asUid` in `asSlot`.
+       * Without a chain, `asUid`/`asSlot` equal `targetUid`/`targetSlot`.
        */
       readonly type: 'copy';
       readonly round: number;
@@ -202,6 +203,8 @@ export type GameEvent =
       readonly targetUid: string;
       readonly targetCardId: string;
       readonly asCardId: string;
+      readonly asUid: string;
+      readonly asSlot: number;
     }
   | {
       /** R-12, R-13: the effect of the card in `sourceSlot` had no valid target and did nothing. */

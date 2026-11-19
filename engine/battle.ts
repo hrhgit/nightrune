@@ -352,12 +352,12 @@ function fireGrow(line: readonly Slot[], index: number, source: CardInstance, am
  * the chain is followed until a card that is not a copy; null when it reaches an empty slot or the
  * end of the line (R-13.6). Each step moves one slot the same way, so the chain ends.
  */
-function copiedCard(line: readonly Slot[], index: number): CardInstance | null {
+function copiedCard(line: readonly Slot[], index: number): { readonly card: CardInstance; readonly index: number } | null {
   for (let i = index, steps = 0; steps <= line.length; steps++) {
     const card = line[i] ?? null;
     if (card === null) return null;
     const effect = cardDef(card.cardId).effect;
-    if (effect.kind !== 'copy') return card;
+    if (effect.kind !== 'copy') return { card, index: i };
     i -= 1; // every copy card targets 'previous' (Effect in types.ts)
   }
   return null;
@@ -367,8 +367,8 @@ function copiedCard(line: readonly Slot[], index: number): CardInstance | null {
 function fireCopy(line: readonly Slot[], index: number, source: CardInstance, target: TargetSide, f: Firing): Fired {
   const aim = targetOf(line, index, source, target, f);
   if (aim === null) return { line, contribution: NOTHING };
-  const acting = copiedCard(line, aim.index);
-  if (acting === null) {
+  const copied = copiedCard(line, aim.index);
+  if (copied === null) {
     fizzle(f, index, source, target, aim.index, 'nothing-to-copy');
     return { line, contribution: NOTHING };
   }
@@ -383,11 +383,13 @@ function fireCopy(line: readonly Slot[], index: number, source: CardInstance, ta
     targetSlot: aim.index + 1,
     targetUid: aim.card.uid,
     targetCardId: aim.card.cardId,
-    asCardId: acting.cardId,
+    asCardId: copied.card.cardId,
+    asUid: copied.card.uid,
+    asSlot: copied.index + 1,
   });
   // R-13.3: the copy has the copied card's current value, growth included. R-13.4: its own targets
   // are counted from this card's slot.
-  return fireAs(line, index, source, acting, f);
+  return fireAs(line, index, source, copied.card, f);
 }
 
 function endReason(playerDead: boolean, enemyDead: boolean): EndReason | null {

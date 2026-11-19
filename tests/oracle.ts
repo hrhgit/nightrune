@@ -95,12 +95,13 @@ export function expectedRound(state: BattleState): RoundOutcome {
           // R-13.5: a copy of a copy card is a copy of what it copies; R-13.6: a chain that reaches
           // an empty slot or the end of the line copies nothing.
           let copied: CardInstance | null = t.card;
-          for (let i = t.at; copied !== null && TABLE[copied.cardId]?.effect.kind === 'copy'; ) {
-            i -= 1;
-            copied = i >= 1 ? (lines[side][i - 1] ?? null) : null;
+          let from = t.at;
+          while (copied !== null && TABLE[copied.cardId]?.effect.kind === 'copy') {
+            from -= 1;
+            copied = from >= 1 ? (lines[side][from - 1] ?? null) : null;
           }
           if (copied === null) return void out.fizzles.push(`${who} nothing-to-copy ${t.at}`);
-          out.copies.push(`${who} -> ${tag(side, t.card)}@${t.at} as ${copied.cardId}`);
+          out.copies.push(`${who} -> ${tag(side, t.card)}@${t.at} as ${tag(side, copied)}@${from} ${copied.cardId}`);
           fire(side, at, copied); // R-13.3: its current value, growth included
           return;
         }
@@ -166,7 +167,7 @@ export function actualRound(before: BattleState, events: readonly GameEvent[], a
         get(e.slot).grows.push(`${e.side}:${e.uid}@${e.sourceSlot} -> ${e.side}:${e.targetUid}@${e.targetSlot} +${e.amount} = ${e.valueAfter}`);
         break;
       case 'copy':
-        get(e.slot).copies.push(`${e.side}:${e.uid}@${e.sourceSlot} -> ${e.side}:${e.targetUid}@${e.targetSlot} as ${e.asCardId}`);
+        get(e.slot).copies.push(`${e.side}:${e.uid}@${e.sourceSlot} -> ${e.side}:${e.targetUid}@${e.targetSlot} as ${e.side}:${e.asUid}@${e.asSlot} ${e.asCardId}`);
         break;
       case 'fizzle':
         get(e.slot).fizzles.push(`${e.side}:${e.uid}@${e.sourceSlot} ${e.reason}${e.targetSlot === null ? '' : ` ${e.targetSlot}`}`);

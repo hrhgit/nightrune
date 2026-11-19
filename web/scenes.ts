@@ -122,7 +122,7 @@ export const SCENES: readonly SceneSpec[] = [
     ],
     impacts: [
       {
-        event: { type: 'copy', round: 1, slot: 2, side: 'player', uid: 'p2', cardId: 'echo', sourceSlot: 2, targetSlot: 1, targetUid: 'p1', targetCardId: 'slash', asCardId: 'slash' },
+        event: { type: 'copy', round: 1, slot: 2, side: 'player', uid: 'p2', cardId: 'echo', sourceSlot: 2, targetSlot: 1, targetUid: 'p1', targetCardId: 'slash', asCardId: 'slash', asUid: 'p1', asSlot: 1 },
         age: 0.5,
       },
     ],
@@ -142,7 +142,7 @@ export const SCENES: readonly SceneSpec[] = [
     ],
     impacts: [
       {
-        event: { type: 'copy', round: 1, slot: 2, side: 'player', uid: 'p2', cardId: 'echo', sourceSlot: 2, targetSlot: 1, targetUid: 'p1', targetCardId: 'whetstone', asCardId: 'whetstone' },
+        event: { type: 'copy', round: 1, slot: 2, side: 'player', uid: 'p2', cardId: 'echo', sourceSlot: 2, targetSlot: 1, targetUid: 'p1', targetCardId: 'whetstone', asCardId: 'whetstone', asUid: 'p1', asSlot: 1 },
         age: 0.5,
       },
       {

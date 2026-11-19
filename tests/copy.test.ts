@@ -97,10 +97,12 @@ describe('R-13.5 a row of copies all act as the card before the row', () => {
     let state: BattleState = { ...start, enemy: { ...start.enemy, hp: 100 } };
     for (let r = 0; r < 2; r++) {
       const out = run(state);
-      expect(of(out.events, 'copy').map((e) => [e.slot, e.targetSlot, e.asCardId])).toEqual([
-        [2, 1, 'slash'],
-        [3, 2, 'slash'],
-        [4, 3, 'slash'],
+      // asUid and asSlot name the card at the end of the chain, which the board lights up.
+      const slashUid = state.player.line[0]?.uid;
+      expect(of(out.events, 'copy').map((e) => [e.slot, e.targetSlot, e.asSlot, e.asUid, e.asCardId])).toEqual([
+        [2, 1, 1, slashUid, 'slash'],
+        [3, 2, 1, slashUid, 'slash'],
+        [4, 3, 1, slashUid, 'slash'],
       ]);
       expect([1, 2, 3, 4].map((s) => enemyDamageIn(out.events, s))).toEqual([SLASH, SLASH, SLASH, SLASH]);
       expect(of(out.events, 'fizzle')).toEqual([]);

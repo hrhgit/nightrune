@@ -87,7 +87,14 @@ describe('scene preview definitions', () => {
           }
           if (target === null || target === undefined) throw new Error(`${e.type} needs a target`);
           expect([e.targetSlot, e.targetCardId]).toEqual([aim, target.id]);
-          if (e.type === 'copy') continue;
+          if (e.type === 'copy') {
+            // R-13.5: the card copied is the first card at or before the target that is not a copy card.
+            const as = cardAt(spec, e.side, e.asSlot);
+            expect(as?.id).toBe(e.asCardId);
+            expect(e.asSlot).toBeLessThanOrEqual(e.targetSlot);
+            if (as !== null && as !== undefined) expect(cardDef(as.id).effect.kind).not.toBe('copy');
+            continue;
+          }
           expect(e.amount).toBe(cardValue({ cardId: copied.id, level: copied.level, growth: copied.growth }));
           // The scene shows the moment after growth landed: the target already carries it.
           expect(e.valueAfter).toBe(cardValue({ cardId: target.id, level: target.level, growth: target.growth }));

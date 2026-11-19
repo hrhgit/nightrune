@@ -416,8 +416,9 @@ function enterBeat(beat: Beat, now: number): void {
   app.firing = new Map();
   for (const e of beat.events) {
     if (e.type === 'trigger') app.firing.set(e.uid, 1);
-    // R-13: the copied card lights up too, so the player sees which card the Echo is copying.
-    if (e.type === 'copy') app.firing.set(e.targetUid, 1);
+    // R-13: the copied card lights up too, so the player sees which card the Echo is copying
+    // (in a chain of Echoes, the card at the end of the chain, R-13.5).
+    if (e.type === 'copy') app.firing.set(e.asUid, 1);
     if (e.type === 'damage') {
       app.hpBefore[e.target] = app.shownHp[e.target];
       app.shownHp[e.target] = e.hpAfter;

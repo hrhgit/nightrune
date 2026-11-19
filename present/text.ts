@@ -35,8 +35,9 @@ const FIZZLE_TEXT: Record<FizzleReason, (e: Extract<GameEvent, { type: 'fizzle' 
 };
 
 /** "Slot 3: " for a card firing in its own slot; "Slot 3 (from slot 2): " for one fired again by another card. */
-function at(e: { slot: number; sourceSlot: number }): string {
-  return e.slot === e.sourceSlot ? `Slot ${e.slot}: ` : `Slot ${e.slot} (from slot ${e.sourceSlot}): `;
+// Every effect acts from the slot that is firing (a copy acts in its own slot, R-13.4).
+function at(e: { slot: number }): string {
+  return `Slot ${e.slot}: `;
 }
 
 const SIDE: Record<'player' | 'enemy', string> = { player: 'You', enemy: 'Enemy' };

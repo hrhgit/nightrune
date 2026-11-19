@@ -1050,7 +1050,7 @@ function drawGrowth(ctx: CanvasRenderingContext2D, impacts: readonly Impact[], m
       continue;
     }
     const glow = e.type === 'grow' ? DIRECTION_GLOW.growth : DIRECTION_GLOW.flow;
-    const to = slotX(e.side, e.targetSlot);
+    const to = slotX(e.side, e.type === 'copy' ? e.asSlot : e.targetSlot); // R-13.5: a chain points at the card copied
     const t = motion ? Math.min(1, age / 0.25) : 1;
     const top = LINE_Y - SLOT_STONE.h / 2;
     ctx.save();
