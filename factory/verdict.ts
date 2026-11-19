@@ -59,18 +59,20 @@ export function judge(f: RunFacts): Judgement {
   const open = blocking(f.findings);
   const failing = f.checksPassed === false || open.length > 0;
   if (failing && f.attempts >= f.maxAttempts) human.push(`retry limit reached (${f.attempts} of ${f.maxAttempts})`);
-  if (human.length > 0) return { verdict: 'NEEDS_HUMAN', reasons: human };
 
   const notDone: string[] = [];
   if (f.checksPassed === null) notDone.push('checks were not run');
   if (f.review === null) notDone.push('no Qodo review seen');
   else if (f.review.status !== 'completed') notDone.push(`Qodo review is ${f.review.status}`);
   else if (f.headSha === null || f.review.commitSha !== f.headSha) notDone.push(`Qodo reviewed ${f.review.commitSha.slice(0, 7)}, not the PR head ${f.headSha?.slice(0, 7) ?? '(none)'}`);
-  if (notDone.length > 0) return { verdict: 'NOT_DONE', reasons: notDone };
 
   const fix: string[] = [];
   if (f.checksPassed === false) fix.push('npm run check fails');
   for (const x of open) fix.push(`open ${x.action_level} finding: ${x.title}`);
+
+  // A person who is asked to decide also sees the state of the review and what is still open.
+  if (human.length > 0) return { verdict: 'NEEDS_HUMAN', reasons: [...human, ...notDone, ...fix] };
+  if (notDone.length > 0) return { verdict: 'NOT_DONE', reasons: notDone };
   if (fix.length > 0) return { verdict: 'NEEDS_FIX', reasons: fix };
 
   const low = forHuman(f.findings);

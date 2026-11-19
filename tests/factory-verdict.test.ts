@@ -58,6 +58,12 @@ describe('factory verdict', () => {
     expect(judge({ ...clean, stoppedBy: 'the run failed: push rejected' })).toEqual({ verdict: 'NEEDS_HUMAN', reasons: ['the run failed: push rejected'] });
   });
 
+  it('NEEDS_HUMAN also tells the person when the review of the head is missing or still has open findings', () => {
+    const asked = { ...clean, question: 'the agent disagrees with a finding' };
+    expect(judge({ ...asked, review: { status: 'started', commitSha: head } }).reasons).toEqual(['agent asked: the agent disagrees with a finding', 'Qodo review is started']);
+    expect(judge({ ...asked, findings: [finding('action_required')] }).reasons).toEqual(['agent asked: the agent disagrees with a finding', 'open action_required finding: a action_required finding']);
+  });
+
   it('an unknown finding status counts as open', () => {
     expect(judge({ ...clean, findings: [finding('action_required', 'something_new')] }).verdict).toBe('NEEDS_FIX');
   });
