@@ -27,14 +27,14 @@ function expectRejected(state: BattleState, action: Parameters<typeof step>[1], 
 }
 
 describe('R-03 draw up to the hand size; reshuffle the discard pile when the draw pile runs out', () => {
-  it('starts placement with a full hand drawn from the shuffled deck', () => {
+  it('R-03.1 starts placement with a full hand drawn from the shuffled deck', () => {
     const { state, events } = startBattle({ enemyId: 'training-dummy', seed: 1 });
     expect(state.player.hand).toHaveLength(RULES.handSize);
     expect(state.player.drawPile).toHaveLength(10 - RULES.handSize);
     expect(events.map((e) => e.type)).toEqual(['shuffle', 'placement-start', 'draw', 'draw', 'draw', 'draw']);
   });
 
-  it('reshuffles the discard pile mid-draw and keeps drawing', () => {
+  it('R-03.2 reshuffles the discard pile mid-draw and keeps drawing', () => {
     // 10 cards, nothing placed: round 1 draws 4 (6 left), round 2 draws 4 (2 left),
     // round 3 draws 2, reshuffles the 8 discarded cards, then draws 2 more.
     let state = fresh();
@@ -47,7 +47,7 @@ describe('R-03 draw up to the hand size; reshuffle the discard pile when the dra
     expect(r3.player.discard).toHaveLength(0);
   });
 
-  it('draws fewer cards without failing when the deck is smaller than the hand', () => {
+  it('R-03.3 draws fewer cards without failing when the deck is smaller than the hand', () => {
     const state = createBattle({ enemyId: 'training-dummy', seed: 1, deck: ['slash', 'slash'] });
     expect(state.player.hand).toHaveLength(2);
     const next = step(state, { type: 'run' }).state;
@@ -56,7 +56,7 @@ describe('R-03 draw up to the hand size; reshuffle the discard pile when the dra
 });
 
 describe('R-04 energy is set at the start of placement and not carried over', () => {
-  it('starts at the per-round energy and resets after a round with unspent energy', () => {
+  it('R-04.1 R-04.2 starts at the per-round energy and resets after a round with unspent energy', () => {
     let state = fresh();
     expect(state.player.energy).toBe(RULES.energyPerRound);
     state = step(state, { type: 'place', uid: firstHandUid(state), slot: 1 }).state;
@@ -67,7 +67,7 @@ describe('R-04 energy is set at the start of placement and not carried over', ()
 });
 
 describe('R-05 placing a card costs its energy', () => {
-  it('places into an empty slot, pays the cost and leaves the hand', () => {
+  it('R-05.1 R-05.4 places into an empty slot, pays the cost and leaves the hand', () => {
     const state = fresh();
     const card = state.player.hand[0];
     if (card === undefined) throw new Error('empty hand');
@@ -81,7 +81,7 @@ describe('R-05 placing a card costs its energy', () => {
     ]);
   });
 
-  it('has no limit on cards per round other than energy', () => {
+  it('R-05.2 R-05.3 has no limit on cards per round other than energy', () => {
     // Cost-1 cards only, so the count is decided by energy and not by which cards the shuffle dealt.
     let state = createBattle({ enemyId: 'training-dummy', seed: 1, deck: ['slash', 'parry', 'slash', 'parry', 'slash'] });
     for (const slot of [1, 2, 3]) state = step(state, { type: 'place', uid: firstHandUid(state), slot }).state;
@@ -89,7 +89,7 @@ describe('R-05 placing a card costs its energy', () => {
     expectRejected(state, { type: 'place', uid: firstHandUid(state), slot: 4 }, 'not-enough-energy');
   });
 
-  it('replacing a different card sends the old card to the discard pile and still pays', () => {
+  it('R-05.5 replacing a different card sends the old card to the discard pile and still pays', () => {
     // Only one player card exists before T01, so the occupant is put on the line directly.
     const base = fresh();
     const occupant = { uid: 'x1', cardId: 'dummy-swing', level: 1, growth: 0 } as const;
@@ -110,7 +110,7 @@ describe('R-05 placing a card costs its energy', () => {
     expectRejected(state, { type: 'place', uid: firstHandUid(state), slot: 1 }, 'merge-not-built');
   });
 
-  it('refuses cards that are not in hand and slots outside the line, without changing state', () => {
+  it('R-05.8 refuses cards that are not in hand and slots outside the line, without changing state', () => {
     const state = fresh();
     const inDrawPile = state.player.drawPile[0]?.uid ?? '';
     expectRejected(state, { type: 'place', uid: inDrawPile, slot: 1 }, 'card-not-in-hand');
@@ -126,7 +126,7 @@ describe('R-05 placing a card costs its energy', () => {
     expect(checkPlace(state, firstHandUid(state), 9)).toEqual({ ok: false, reason: 'slot-out-of-range' });
   });
 
-  it('refuses every action once the battle is over', () => {
+  it('R-10.4 refuses every action once the battle is over', () => {
     const base = fresh();
     const won: BattleState = { ...base, outcome: 'won' };
     expectRejected(won, { type: 'place', uid: firstHandUid(base), slot: 1 }, 'battle-over');
@@ -135,7 +135,7 @@ describe('R-05 placing a card costs its energy', () => {
 });
 
 describe('R-06 cards left in hand go to the discard pile at the end of placement', () => {
-  it('discards the unplayed hand before the run', () => {
+  it('R-06.1 discards the unplayed hand before the run', () => {
     let state = fresh();
     state = step(state, { type: 'place', uid: firstHandUid(state), slot: 1 }).state;
     const leftInHand = state.player.hand.map((c) => c.uid);

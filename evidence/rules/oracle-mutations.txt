@@ -1,0 +1,29 @@
+Mutation check for tests/oracle.test.ts (branch rules/literal-requirements).
+Each line: one deliberate change to engine/battle.ts, then `npx tsc --noEmit -p .` error count
+and `npx vitest run tests/oracle.test.ts` result. engine/battle.ts was restored after each.
+
+Unmodified engine                                  => Tests 3 passed (3)
+block carried to the next slot                     => tsc errors 0; Tests 3 failed (3)
+round limit off by one (round > maxRounds)         => tsc errors 0; Tests 1 failed | 2 passed (3)
+slots fired 4 to 1                                 => tsc errors 0; Tests 3 failed (3)
+wrap-around (slot 4 next = slot 1)                 => tsc errors 0; Tests 3 failed (3)
+re-fire limit per slot instead of per round        => tsc errors 0; Tests 2 failed | 1 passed (3)
+re-fired card's attack and block dropped           => tsc errors 0; Tests 3 failed (3)
+both sides at 0 counted as a win                   => tsc errors 0; Tests 1 failed | 2 passed (3)
+block ignored in damage to the enemy               => tsc errors 0; Tests 1 failed | 2 passed (3)
+growth not stored on the card                      => tsc errors 0; Tests 3 failed (3)
+battle does not end until slot 4 after 0 HP        => tsc errors 0; Tests 2 failed | 1 passed (3)
+
+An earlier attempt at "block carried" referenced an undeclared variable (2 tsc errors);
+it is not counted. The round-limit break was first missed (battles of 3 rounds never reach
+round 20); the full-battle test was added for it, then it failed as listed.
+
+After Qodo's first review of PR #17 (finding: final HP never compared with the stored state):
+enemy HP not stored at battle end (events correct) => tsc errors 0;
+  old tests/oracle.ts (981bbf2): Tests 3 passed (3)   <- missed
+  new tests/oracle.ts (compares after.*.hp): Tests 2 failed | 1 passed (3)
+
+tests/rule-ids.test.ts self-tests, each run with its fix undone:
+id regex back to (?:\.\d+)?          => "reads a malformed dotted id as itself" failed
+status check removed                 => "reports a misspelled status" failed
+unknown ids read from it() only      => "reports an unknown requirement id named only in a describe() title" failed

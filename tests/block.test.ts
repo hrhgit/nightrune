@@ -45,7 +45,7 @@ describe('T01 Parry card data', () => {
 });
 
 describe('R-08 block cancels the opposing attack in the same slot', () => {
-  it('Parry opposite the Training Dummy attack (3) takes no damage in that slot', () => {
+  it('R-08.2 Parry opposite the Training Dummy attack (3) takes no damage in that slot', () => {
     const before = battle([null, 'parry', null, null]);
     const { state, events } = step(before, { type: 'run' });
     expect(damageTo(events, 'player', 2)).toBe(0);
@@ -68,13 +68,13 @@ describe('R-08 block cancels the opposing attack in the same slot', () => {
     expect(damageTo(events, 'player', 2)).toBe(3);
   });
 
-  it('boundary: block equal to the attack gives 0 damage and no damage event', () => {
+  it('R-08.2 boundary: block equal to the attack gives 0 damage and no damage event', () => {
     const state = withEnemyCard(battle([null, 'parry', null, null]), 2, 'slash'); // attack 4 vs block 4
     const { events } = step(state, { type: 'run' });
     expect(inSlot(events, 2).filter((e) => e.type === 'damage')).toEqual([]);
   });
 
-  it('boundary: block larger than the attack never heals and never makes negative damage', () => {
+  it('R-08.2 boundary: block larger than the attack never heals and never makes negative damage', () => {
     const before = withPlayerLevel(battle([null, 'parry', null, null]), 2, 3); // block 9 vs attack 3
     const { state, events } = step(before, { type: 'run' });
     for (const e of events) if (e.type === 'damage') expect(e.amount).toBeGreaterThan(0);
@@ -82,7 +82,7 @@ describe('R-08 block cancels the opposing attack in the same slot', () => {
     expect(state.player.hp).toBe(before.player.hp - 3); // only slot 4 lands; no healing from the extra 6
   });
 
-  it('failure case: Parry in slot 1 does not block the attack in slot 2 (no carry to later slots)', () => {
+  it('R-08.4 failure case: Parry in slot 1 does not block the attack in slot 2 (no carry to later slots)', () => {
     const before = battle(['parry', null, null, null]);
     const { state, events } = step(before, { type: 'run' });
     expect(damageTo(events, 'player', 2)).toBe(3);
@@ -90,7 +90,7 @@ describe('R-08 block cancels the opposing attack in the same slot', () => {
     expect(state.player.hp).toBe(before.player.hp - 6);
   });
 
-  it('block does not carry into the next round', () => {
+  it('R-08.5 block does not carry into the next round', () => {
     // Round 1: Parry blocks in slot 2. Round 2: replace it with nothing useful — move the Parry away.
     const r1 = step(battle([null, 'parry', null, null]), { type: 'run' });
     const moved: BattleState = { ...r1.state, player: { ...r1.state.player, line: [r1.state.player.line[1] ?? null, null, null, null] } };
@@ -98,7 +98,7 @@ describe('R-08 block cancels the opposing attack in the same slot', () => {
     expect(damageTo(r2.events, 'player', 2)).toBe(3);
   });
 
-  it('R-17: an enemy-side block reduces the player attack in that slot, both sides resolve at once', () => {
+  it('R-17.3: an enemy-side block reduces the player attack in that slot, both sides resolve at once', () => {
     // Slot 2: player Slash L3 (9) vs enemy Parry (4). Enemy takes 5; enemy has no attack there.
     const state = withPlayerLevel(withEnemyCard(battle([null, 'slash', null, null]), 2, 'parry'), 2, 3);
     const { events } = step(state, { type: 'run' });

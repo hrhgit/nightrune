@@ -15,7 +15,7 @@ function greedyRecord(seed: number): BattleRecord {
 }
 
 describe('R-16 a recorded battle replays to the same final state', () => {
-  it('replays greedy games on 5 seeds to the recorded hash', () => {
+  it('R-16.3 replays greedy games on 5 seeds to the recorded hash', () => {
     for (const seed of [1, 7, 42, 1234, 4294967295]) {
       const record = greedyRecord(seed);
       const result = replay(record);
