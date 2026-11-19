@@ -36,7 +36,7 @@ const HP_PLAQUE = { w: 214, h: 46 } as const;
 const HP_Y = LINE_Y + SLOT_STONE.h / 2 + 12;
 const FIRE = { x: 480, y: 384, scale: 0.64 } as const;
 /** The hand tray, bottom middle. The page lays the hand's buttons over it (see handTrayRect). */
-const HAND_TRAY = { x: 256, y: 420, w: 448, h: 116 } as const;
+const HAND_TRAY = { x: 236, y: 418, w: 488, h: 118 } as const;
 
 /** The hand tray in board units, for placing the HTML hand over it. */
 export function handTrayRect(): { x: number; y: number; w: number; h: number } {

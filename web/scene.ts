@@ -11,7 +11,7 @@ import '@fontsource/alegreya-sans/700.css';
 import './style.css';
 import { cardDef, createBattle, enemyDef, type CardInstance, type EnemyId, type Level, type Owner, type Slot } from '../engine/index.ts';
 import { BOARD, drawBoard } from './board.ts';
-import { handCanvas, look, placeHand } from './look.ts';
+import { handCanvas, look, watchHand } from './look.ts';
 import type { SceneReport, TextMark, TextOverlap } from './scene-report.ts';
 import { SCENES, type CardRef, type SceneSpec } from './scenes.ts';
 
@@ -130,7 +130,6 @@ function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motio
   // The article goes into the page first, so a scene that fails below still has an element to screenshot.
   article.append(title, note, wrap);
   host.append(article);
-  const handTray = placeHand(hand, wrap, { after: wrap });
   const handCards = (spec.hand ?? []).map((ref, i) => instance(ref, `hand-${i + 1}`));
 
   // Size the backing store after the canvas is in the page, as the game does.
@@ -152,7 +151,7 @@ function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motio
     return before === undefined ? { now, max } : { now, max, before };
   };
   recordText(canvas, ctx, spec.id, 'board', marks);
-  drawBoard(ctx, {
+  const draw = (handTray: boolean) => drawBoard(ctx, {
     seed: spec.seed,
     time: spec.time ?? 1000,
     motion,
@@ -168,6 +167,15 @@ function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motio
     impacts: spec.impacts ?? [],
     handTray,
   });
+  // The hand moves between the tray and below the board as the board resizes; redraw to match,
+  // dropping the old drawing's text marks so the report describes only what is on screen.
+  draw(
+    watchHand(hand, wrap, { after: wrap }, (inTray) => {
+      for (let i = marks.length - 1; i >= 0; i--) if (marks[i]?.el === canvas) marks.splice(i, 1);
+      ctx.clearRect(0, 0, BOARD.width, BOARD.height);
+      draw(inTray);
+    }),
+  );
 
   handCards.forEach((card, i) => {
     const holder = document.createElement('div');
