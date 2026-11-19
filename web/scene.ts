@@ -9,13 +9,13 @@ import '@fontsource/alegreya-sans/400.css';
 import '@fontsource/alegreya-sans/500.css';
 import '@fontsource/alegreya-sans/700.css';
 import './style.css';
-import { cardDef, createBattle, enemyDef, type CardInstance, type Level, type Owner, type Slot } from '../engine/index.ts';
-import { BOARD, drawBoard, type Floater } from './board.ts';
-import { floaterFor, handCanvas, look } from './look.ts';
+import { cardDef, createBattle, enemyDef, type CardInstance, type EnemyId, type Level, type Owner, type Slot } from '../engine/index.ts';
+import { BOARD, drawBoard } from './board.ts';
+import { handCanvas, look, watchHand } from './look.ts';
 import type { SceneReport, TextMark, TextOverlap } from './scene-report.ts';
 import { SCENES, type CardRef, type SceneSpec } from './scenes.ts';
 
-const ENEMY_ID = 'training-dummy';
+const ENEMY_ID: EnemyId = 'training-dummy';
 // Starting HP comes from the engine, not a copy of the rule table.
 const opening = createBattle({ enemyId: ENEMY_ID, seed: 1 });
 const DEFAULT_HP: Record<Owner, number> = { player: opening.player.hp, enemy: opening.enemy.hp };
@@ -103,7 +103,7 @@ function onScreen(raw: readonly RawMark[]): TextMark[] {
   }));
 }
 
-function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motion: boolean): void {
+function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motion: boolean, redrawn: () => void): void {
   const article = document.createElement('article');
   article.className = 'scene';
   article.id = `scene-${spec.id}`;
@@ -128,7 +128,7 @@ function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motio
   const hand = document.createElement('div');
   hand.className = 'hand';
   // The article goes into the page first, so a scene that fails below still has an element to screenshot.
-  article.append(title, note, wrap, hand);
+  article.append(title, note, wrap);
   host.append(article);
   const handCards = (spec.hand ?? []).map((ref, i) => instance(ref, `hand-${i + 1}`));
 
@@ -146,16 +146,16 @@ function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motio
     if (card === null || card === undefined) throw new Error(`${spec.id}: firing slot ${f.side} ${f.slot} is empty`);
     firing.set(card.uid, f.glow);
   }
-  const floaters: Floater[] = (spec.floaters ?? []).map((f) => ({ ...floaterFor(f.event), age: f.age }));
   const hp = (side: Owner) => {
-    const [now, max] = spec.hp?.[side] ?? [DEFAULT_HP[side], DEFAULT_HP[side]];
-    return { now, max };
+    const [now, max, before] = spec.hp?.[side] ?? [DEFAULT_HP[side], DEFAULT_HP[side]];
+    return before === undefined ? { now, max } : { now, max, before };
   };
   recordText(canvas, ctx, spec.id, 'board', marks);
-  drawBoard(ctx, {
+  const draw = (handTray: boolean) => drawBoard(ctx, {
     seed: spec.seed,
     time: spec.time ?? 1000,
     motion,
+    enemyId: ENEMY_ID,
     enemyName: enemyDef(ENEMY_ID).name,
     hp: { player: hp('player'), enemy: hp('enemy') },
     lines,
@@ -164,8 +164,19 @@ function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motio
     firing,
     targets: new Set(spec.targets ?? []),
     hoverSlot: spec.hover ?? null,
-    floaters,
+    impacts: spec.impacts ?? [],
+    handTray,
   });
+  // The hand moves between the tray and below the board as the board resizes; redraw to match,
+  // dropping the old drawing's text marks so the report describes only what is on screen.
+  draw(
+    watchHand(hand, wrap, { after: wrap }, (inTray) => {
+      for (let i = marks.length - 1; i >= 0; i--) if (marks[i]?.el === canvas) marks.splice(i, 1);
+      ctx.clearRect(0, 0, BOARD.width, BOARD.height);
+      draw(inTray);
+      redrawn();
+    }),
+  );
 
   handCards.forEach((card, i) => {
     const holder = document.createElement('div');
@@ -194,9 +205,15 @@ async function main(): Promise<void> {
   await document.fonts.ready;
   const motion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const marks: RawMark[] = [];
+  // Publish (and republish after a resize redraw), so the report always describes the board as it
+  // is on screen now, not as it was first drawn.
+  let ready = false;
+  const publish = () => {
+    if (ready) window.__sceneReport = { ready: true, scenes: chosen.map((s) => s.id), marks: onScreen(marks), overlaps: overlapsOf(marks), errors };
+  };
   for (const spec of chosen) {
     try {
-      renderScene(spec, host, marks, motion);
+      renderScene(spec, host, marks, motion, publish);
     } catch (err) {
       errors.push(`${spec.id}: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -208,7 +225,8 @@ async function main(): Promise<void> {
     p.textContent = e;
     host.append(p);
   }
-  window.__sceneReport = { ready: true, scenes: chosen.map((s) => s.id), marks: onScreen(marks), overlaps: overlapsOf(marks), errors };
+  ready = true;
+  publish();
 }
 
 main().catch((err: unknown) => {

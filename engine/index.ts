@@ -13,3 +13,4 @@ export {
 export { nextBelow, nextUint32, seedRng, shuffle, type RngState } from './rng.ts';
 export { assertNever, EngineError } from './types.ts';
 export type * from './types.ts';
+export type { EnemyId } from '../data/enemies.ts';

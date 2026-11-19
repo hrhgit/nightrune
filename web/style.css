@@ -290,6 +290,21 @@ button.primary:hover:not(:disabled) {
   align-items: end;
 }
 
+.hand.in-tray {
+  position: absolute;
+  flex: none;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2%;
+  min-height: 0;
+  padding: 0.6% 1.6% 0;
+  align-items: center;
+}
+
+.hand.in-tray .card canvas {
+  /* Cards fill the tray's height; width follows from the square canvas. */
+  max-height: 100%;
+}
+
 .hand-empty {
   grid-column: 1 / -1;
   margin: 0;
@@ -459,7 +474,7 @@ button.primary:hover:not(:disabled) {
   color: var(--rune);
 }
 
-.scene .hand {
+.scene .hand:not(.in-tray) {
   margin-top: 12px;
 }
 
