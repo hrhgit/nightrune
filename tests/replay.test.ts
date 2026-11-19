@@ -85,7 +85,7 @@ describe('R-16 replay command exit codes', () => {
     expect(run(write('shape.json', '{"seed": 7}')).status).toBe(2);
     expect(run().status).toBe(2);
     // Leftover or repeated options are errors, even when the hash would match (Qodo finding on #14).
-    expect(run(good, '--expect', 'bb20ce7f39161e47', '--expect').status).toBe(2);
+    expect(run(good, '--expect', greedyRecord(7).finalHash ?? '', '--expect').status).toBe(2);
     expect(run(good, good).status).toBe(2);
   }, 30_000);
 
