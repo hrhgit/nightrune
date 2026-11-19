@@ -2,12 +2,18 @@
 // Usage: npm run play [-- --seed 7] [-- --json]
 import { playGreedy } from '../bots/greedy.ts';
 import { enemyDef, startBattle } from '../engine/index.ts';
+import { parseSeed, SEED_HELP } from '../present/seed.ts';
 import { eventText } from '../present/text.ts';
 
 const args = process.argv.slice(2);
 const json = args.includes('--json');
 const seedAt = args.indexOf('--seed');
-const seed = seedAt === -1 ? 1 : Number(args[seedAt + 1]);
+const parsed = seedAt === -1 ? 1 : parseSeed(args[seedAt + 1]);
+if (parsed === null) {
+  console.error(`--seed needs a value. ${SEED_HELP}\nUsage: npm run play [-- --seed 7] [-- --json]`);
+  process.exit(2);
+}
+const seed: number = parsed;
 const enemyId = 'training-dummy';
 
 const opening = startBattle({ enemyId, seed });

@@ -12,7 +12,6 @@ import {
   EngineError,
   enemyDef,
   legalPlacements,
-  seedRng,
   startBattle,
   step,
   type BattleState,
@@ -20,6 +19,7 @@ import {
   type GameEvent,
   type Owner,
 } from '../engine/index.ts';
+import { parseSeed, SEED_HELP } from '../present/seed.ts';
 import { battleEndText, cardEffectText, cardName, cardValue, eventText, rejectText } from '../present/text.ts';
 import { BOARD, drawBoard, drawStone, slotRect, STONE, type Floater, type StoneLook } from './board.ts';
 
@@ -102,19 +102,9 @@ function randomSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0] ?? 0;
 }
 
-function parseSeed(text: string): number | null {
-  const trimmed = text.trim();
-  if (!/^\d+$/.test(trimmed)) return null;
-  const n = Number(trimmed);
-  try {
-    seedRng(n);
-    return n;
-  } catch {
-    return null;
-  }
-}
-
 function startGame(seed: number): void {
+  // A round may still be animating; stop its timer so it cannot drive the new battle.
+  if (typeof app !== 'undefined' && app.anim !== null) window.clearTimeout(app.anim.timer);
   const opening = startBattle({ enemyId: ENEMY_ID, seed });
   app = {
     state: opening.state,
@@ -170,9 +160,16 @@ function announce(): void {
 // Controls (HTML)
 // ---------------------------------------------------------------------------
 
+/** Slot label for assistive tech: the occupant and, with a card selected, whether it can go here (engine's answer). */
 function slotLabel(slot: number): string {
   const card = app.state.player.line[slot - 1] ?? null;
-  return card === null ? `Slot ${slot}, empty` : `Slot ${slot}, ${cardName(card.cardId)}`;
+  const base = card === null ? `Slot ${slot}, empty` : `Slot ${slot}, ${cardName(card.cardId)}`;
+  const selected = app.state.player.hand.find((c) => c.uid === app.selected);
+  if (selected === undefined || app.anim !== null || app.state.outcome !== 'ongoing') return base;
+  const name = cardName(selected.cardId);
+  const check = checkPlace(app.state, selected.uid, slot);
+  if (check.ok) return `${base}. Place ${name} here${check.replaces === null ? '' : `, replacing ${cardName(check.replaces.cardId)}`}.`;
+  return `${base}. ${name} cannot go here: ${rejectText(check.reason)}`;
 }
 
 function buildSlotButtons(): void {
@@ -218,7 +215,10 @@ function renderControls(): void {
   roundEl.textContent = `Round ${s.round}`;
   pilesEl.textContent = `Draw pile ${s.player.drawPile.length}, discard ${s.player.discard.length}`;
 
-  // Hand.
+  // Hand. Rebuilding the buttons would drop keyboard focus, so remember which card had it.
+  const focusedUid = document.activeElement instanceof HTMLElement && handEl.contains(document.activeElement)
+    ? (document.activeElement.dataset['uid'] ?? null)
+    : null;
   const handCards = busy ? [] : s.player.hand;
   handEl.replaceChildren();
   if (handCards.length === 0) {
@@ -254,6 +254,7 @@ function renderControls(): void {
     btn.append(c);
     btn.addEventListener('click', () => onCard(card.uid));
     handEl.append(btn);
+    if (card.uid === focusedUid) btn.focus();
   }
 
   // Slots.
@@ -381,13 +382,15 @@ function onRun(): void {
   app.anim = { beats: buildBeats(result.events, !motionQuery.matches), after: result.state, index: -1, beatStart: 0, timer: undefined };
   setHint('');
   renderControls();
-  advanceBeat();
+  advanceBeat(app.anim);
 }
 
-/** Beats advance on a timer, not on animation frames, so a throttled or hidden tab still finishes the round. */
-function advanceBeat(): void {
-  const anim = app.anim;
-  if (anim === null) return;
+/**
+ * Beats advance on a timer, not on animation frames, so a throttled or hidden tab still finishes the round.
+ * Each timer carries the animation that scheduled it and stops if that animation is no longer current.
+ */
+function advanceBeat(anim: Animation): void {
+  if (app.anim !== anim) return;
   anim.index += 1;
   anim.beatStart = performance.now();
   const beat = anim.beats[anim.index];
@@ -396,7 +399,7 @@ function advanceBeat(): void {
     return;
   }
   enterBeat(beat, anim.beatStart);
-  anim.timer = window.setTimeout(advanceBeat, beat.duration);
+  anim.timer = window.setTimeout(() => advanceBeat(anim), beat.duration);
 }
 
 function enterBeat(beat: Beat, now: number): void {
@@ -507,7 +510,7 @@ seedForm.addEventListener('submit', (ev) => {
   ev.preventDefault();
   const seed = parseSeed(seedInput.value);
   if (seed === null) {
-    seedError.textContent = 'A seed is a whole number from 0 to 4294967295.';
+    seedError.textContent = SEED_HELP;
     seedInput.focus();
     return;
   }

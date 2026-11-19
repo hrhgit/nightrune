@@ -21,7 +21,7 @@ Not built yet: Parry and the other cards (the starter deck is all Slash stand-in
 
 ## Run it
 
-Requires Node.js 20+.
+Requires Node.js 20.19+ or 22.12+ (the Vite requirement).
 
 ```bash
 npm ci
