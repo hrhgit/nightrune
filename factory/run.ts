@@ -264,7 +264,7 @@ async function work(t: Ticket): Promise<void> {
     stalled: false,
     stoppedBy: null,
   };
-  const record: Record<string, unknown> = { run: runId, issue: t.number, title: t.title, criteria: crit.length, area: areaName, startedAt: startedAt.toISOString() };
+  const record: Record<string, unknown> = { run: runId, issue: t.number, title: t.title, criteria: crit.length, area: areaName, executor: null, model: null, implementAttempts: 0, reviewRounds: 0, pr: null, startedAt: startedAt.toISOString() };
   if (!facts.ticketOk || area === undefined) return finish(t, facts, record, null, '');
 
   try {

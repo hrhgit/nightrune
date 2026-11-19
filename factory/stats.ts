@@ -4,11 +4,13 @@ import { join } from 'node:path';
 
 export interface RunRecord {
   readonly issue: number;
-  readonly executor: string;
-  readonly model: string;
+  /** Null or absent when the run stopped before an agent was chosen. */
+  readonly executor?: string | null;
+  readonly model?: string | null;
   readonly verdict: string;
-  readonly implementAttempts: number;
-  readonly reviewRounds: number;
+  /** Absent in a record that stopped before the step that sets it. */
+  readonly implementAttempts?: number;
+  readonly reviewRounds?: number;
   readonly startedAt: string;
   readonly finishedAt: string;
   /** Absent when the run stopped before opening a PR. */
@@ -32,12 +34,12 @@ export function stats(runs: readonly RunRecord[]): Record<string, unknown> {
   return {
     runs: runs.length,
     byVerdict: count((r) => r.verdict),
-    byExecutor: count((r) => `${r.executor} ${r.model}`),
+    byExecutor: count((r) => (r.executor == null ? 'no agent' : `${r.executor} ${r.model ?? ''}`.trim())),
     prsOpened: runs.filter((r) => typeof r.pr === 'string').length,
-    implementAttempts: runs.reduce((a, r) => a + r.implementAttempts, 0),
-    reviewRounds: runs.reduce((a, r) => a + r.reviewRounds, 0),
+    implementAttempts: runs.reduce((a, r) => a + (r.implementAttempts ?? 0), 0),
+    reviewRounds: runs.reduce((a, r) => a + (r.reviewRounds ?? 0), 0),
     minutesPerRun: minutes.map((m) => Math.round(m * 10) / 10),
-    perRun: runs.map((r) => ({ issue: r.issue, executor: r.executor, verdict: r.verdict, implementAttempts: r.implementAttempts, reviewRounds: r.reviewRounds })),
+    perRun: runs.map((r) => ({ issue: r.issue, executor: r.executor, verdict: r.verdict, implementAttempts: r.implementAttempts ?? 0, reviewRounds: r.reviewRounds ?? 0 })),
   };
 }
 

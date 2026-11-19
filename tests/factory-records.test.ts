@@ -41,4 +41,13 @@ describe('factory run records', () => {
     const runs: RunRecord[] = [base, { ...base, pr: null }, { ...base, pr: 'https://github.com/o/r/pull/1' }];
     expect(stats(runs).prsOpened).toBe(1);
   });
+
+  it('a run that stopped before choosing an agent adds nothing to the totals', () => {
+    const early: RunRecord = { issue: 2, verdict: 'NEEDS_HUMAN', startedAt: '2026-11-19T00:00:00Z', finishedAt: '2026-11-19T00:00:01Z', reasons: ['ticket has no acceptance criteria'] };
+    const done: RunRecord = { ...early, executor: 'codex', model: 'm', implementAttempts: 1, reviewRounds: 2, pr: 'https://github.com/o/r/pull/1' };
+    const s = stats([early, done]);
+    expect(s.implementAttempts).toBe(1);
+    expect(s.reviewRounds).toBe(2);
+    expect(s.byExecutor).toEqual({ 'no agent': 1, 'codex m': 1 });
+  });
 });
