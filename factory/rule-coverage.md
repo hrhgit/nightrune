@@ -25,14 +25,15 @@ Snapshot: after AGENTS.md (issue #9). The Totals below are checked against this 
 | No claims of `balanced`, `fun` or `bug-free` (AGENTS.md rule 5) | test: `tests/claims.test.ts` scans tracked Markdown and local drafts in `submissions/`, outside code spans and fenced blocks | mutation check on this branch: appending a sentence (`The starter deck is balanced.`) to README.md made the test fail at `README.md:55` | PR descriptions and social posts are not scanned |
 | A factory run's verdict comes from facts, not from the agent's report | test: `tests/factory-verdict.test.ts` checks `judge()` in `factory/verdict.ts`: READY only with passing checks, files inside the ticket's area, and a completed Qodo review of the PR head with no open action-required or recommended finding; NEEDS_HUMAN on a stopped run (setup failure, an open PR already there, the agent committing by itself), a question, a stall, the retry limit, a change outside the area, no change or a ticket without criteria. The agent's report is not an input to `judge()` (type: `RunFacts` has no field for it) | mutation check on this branch: accepting a review of an older commit, treating a pending finding as closed, ignoring a stall, allowing one round past the limit, and ignoring a stopped run each failed at least one test (`evidence/factory/verdict-mutations.txt`) | The runner's I/O (`factory/run.ts`: reading gh, Qodo and git) is checked only by running it; its records are in `factory/runs/` |
 | Factory statistics come only from the committed run records, which hold no personal data | test: `tests/factory-records.test.ts` reads every file in `factory/runs/`: named `<issue>-<timestamp>.json`, a verdict from the runner, no home folder path or e-mail address; `factory/stats.ts` (`npm run factory:stats`) computes the numbers from those files and the test checks it counts every record | mutation check on this branch: putting a `/Users/…` path back into one record failed the test | The runner writes `~` for its worktree folder; other personal data a future field might carry is caught only if it looks like a home path or an e-mail |
+| A fixed review finding becomes an earlier check, verified by facts | test: `tests/factory-lessons.test.ts` checks `lessonProblems()` in `factory/lessons.ts`: every finding the agent fixed needs a lesson (a disputed one does not); a lint lesson must change `eslint.config.js`, its rule must fire on its bad code and stay quiet on its good code under the real config; a type, test or runtime lesson must name a file the round changed; none and review-rule need a reason. `judge()` returns NEEDS_FIX while any lesson is not accepted (`tests/factory-verdict.test.ts`) | mutation check on this branch: see `evidence/factory/lessons-mutations.txt` | Cannot show that a test lesson's file fails on the old bug; only that it was changed in the round. Whether a lesson is the right one is left to review |
 | No copying existing games' cards, names, text or art | text only, needs judgement | none | Qodo review rule candidate |
 
 ## Totals
 
 Checked by `tests/coverage.test.ts`: it classifies every row above by how its "Enforced by" cell starts and fails if these numbers differ.
 
-- Rules: 18
-- Checked by a type, lint or test with proof: 15
+- Rules: 19
+- Checked by a type, lint or test with proof: 16
 - Partial: 1
 - Measured, not checked: 1
 - Text only: 1

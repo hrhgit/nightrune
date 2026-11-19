@@ -37,6 +37,8 @@ export interface RunFacts {
   readonly stalled: boolean;
   /** The run could not go on: setup failed, an open PR already exists, or the agent committed by itself. */
   readonly stoppedBy: string | null;
+  /** Why the lessons for the fixed findings are not accepted (see lessons.ts); empty when all are backed. */
+  readonly lessonProblems: readonly string[];
 }
 
 export const isOpen = (f: Finding): boolean => !CLOSED.has(f.attribution_status);
@@ -68,6 +70,7 @@ export function judge(f: RunFacts): Judgement {
 
   const fix: string[] = [];
   if (f.checksPassed === false) fix.push('npm run check fails');
+  for (const x of f.lessonProblems) fix.push(`lesson not accepted: ${x}`);
   for (const x of open) fix.push(`open ${x.action_level} finding: ${x.title}`);
 
   // A person who is asked to decide also sees the state of the review and what is still open.

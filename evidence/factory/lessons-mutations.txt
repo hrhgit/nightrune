@@ -1,0 +1,8 @@
+Mutations of factory/lessons.ts and verdict.ts; each must fail at least one test in tests/factory-lessons.test.ts or factory-verdict.test.ts.
+- bad code no longer has to trigger the rule:       Tests  1 failed | 22 passed (23)
+- good code may trigger the rule:       Tests  1 failed | 22 passed (23)
+- lint lesson need not change the config:       Tests  1 failed | 22 passed (23)
+- missing lesson is ignored:       Tests  1 failed | 22 passed (23)
+- check file need not be changed:       Tests  1 failed | 22 passed (23)
+- none needs no reason:       Tests  1 failed | 22 passed (23)
+- verdict ignores lesson problems:       Tests  1 failed | 22 passed (23)
