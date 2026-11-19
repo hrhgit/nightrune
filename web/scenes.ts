@@ -80,7 +80,7 @@ export const SCENES: readonly SceneSpec[] = [
   {
     id: 'whetstone-grow',
     title: 'Whetstone grows the next card',
-    look: 'Slot 1 firing: a gold spark runs from the Whetstone to the Slash in slot 2 and "+1" rises over it; the Slash reads "Deals 5 damage…" with 5 highlighted.',
+    look: 'Slot 1 firing: a gold spark runs from the Whetstone to the Slash in slot 2 and "+1" rises over it; the Slash reads "Deal 5" with 5 highlighted.',
     seed: 7,
     enemyLine: DUMMY,
     playerLine: ['whetstone', ['slash', 1, 1], null, 'whetstone'],
