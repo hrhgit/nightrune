@@ -1,0 +1,27 @@
+{
+  "name": "beltdeck",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A seeded, single-player deckbuilding card battler where cards fire in order along a 4-slot conveyor line.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "play": "tsx cli/play.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run lint && npm run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.6.6",
+    "eslint": "10.15.0",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.73.0",
+    "vitest": "5.1.1"
+  }
+}

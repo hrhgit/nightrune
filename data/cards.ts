@@ -1,0 +1,22 @@
+// The card table. All card numbers live here and nowhere else.
+// Values are placeholders until simulation runs exist.
+import type { CardDef } from '../engine/types.ts';
+
+export const CARDS = {
+  strike: {
+    name: 'Stamp Press',
+    direction: 'attack',
+    cost: 1,
+    owner: 'player',
+    effect: { kind: 'attack', amount: [4, 6, 9] },
+  },
+  piston: {
+    name: 'Piston',
+    direction: 'attack',
+    cost: 0,
+    owner: 'enemy',
+    effect: { kind: 'attack', amount: [3, 3, 3] },
+  },
+} as const satisfies Record<string, CardDef>;
+
+export type CardId = keyof typeof CARDS;
