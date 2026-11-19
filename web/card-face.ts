@@ -11,7 +11,7 @@ export interface Box {
 }
 
 /** Effect text sizes in board pixels: the largest size that fits is used, never below the smallest. */
-export const CARD_TEXT = { maxPx: 12, minPx: 9, stepPx: 0.5, lineHeight: 1.12, descent: 0.3 } as const;
+export const CARD_TEXT = { maxPx: 16, minPx: 9, stepPx: 0.5, lineHeight: 1.12, descent: 0.3 } as const;
 
 /** Font of a run of effect text: the value is in a heavier weight than the words around it. */
 export function cardTextFont(px: number, kind: EffectPart['kind']): string {

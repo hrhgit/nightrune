@@ -22,14 +22,11 @@ export interface EffectPart {
 const plain = (text: string): EffectPart => ({ kind: 'text', text });
 const valuePart = (text: string): EffectPart => ({ kind: 'value', text });
 
-/**
- * What a card does at its level, as parts, read from the card table. `shownValue` replaces the
- * card's current value; the page passes a value taken from an event payload (a grow event's
- * `valueAfter`) while a round is animating. Joined, the parts are `cardEffectText`.
- */
-export function cardEffectParts(card: Pick<CardInstance, 'cardId' | 'level' | 'growth'>, shownValue?: number): readonly EffectPart[] {
+type Card = Pick<CardInstance, 'cardId' | 'level' | 'growth'>;
+
+/** The full sentence, for the aria-label and the log. The face uses the short form below. */
+function sentenceParts(card: Card, value: string): readonly EffectPart[] {
   const kind = cardDef(card.cardId).effect.kind;
-  const value = String(shownValue ?? cardValue(card));
   switch (kind) {
     case 'attack':
       return [plain('Deals '), valuePart(value), plain(' damage to the opposing slot.')];
@@ -44,9 +41,32 @@ export function cardEffectParts(card: Pick<CardInstance, 'cardId' | 'level' | 'g
   }
 }
 
+/**
+ * What a card does at its level, as the short phrase printed on its face ("Deal 9"), in parts.
+ * `shownValue` replaces the card's current value; the page passes a value taken from an event
+ * payload (a grow event's `valueAfter`) while a round is animating. The full sentence is
+ * `cardEffectText`; both take the value from the same place.
+ */
+export function cardEffectParts(card: Card, shownValue?: number): readonly EffectPart[] {
+  const kind = cardDef(card.cardId).effect.kind;
+  const value = String(shownValue ?? cardValue(card));
+  switch (kind) {
+    case 'attack':
+      return [plain('Deal '), valuePart(value)];
+    case 'block':
+      return [plain('Block '), valuePart(value)];
+    case 'grow':
+      return [plain('Next card '), valuePart(`+${value}`)];
+    case 'copy':
+      return [plain('Copy previous card')];
+    default:
+      return assertNever(kind);
+  }
+}
+
 /** One-line description of what a card does at its level, for the aria-label and the log. */
-export function cardEffectText(card: Pick<CardInstance, 'cardId' | 'level' | 'growth'>): string {
-  return cardEffectParts(card)
+export function cardEffectText(card: Card): string {
+  return sentenceParts(card, String(cardValue(card)))
     .map((p) => p.text)
     .join('');
 }

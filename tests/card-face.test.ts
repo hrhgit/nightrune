@@ -96,10 +96,12 @@ const weightOf = (font: string): number => Number(/^(\d{3}) /.exec(font)?.[1]);
 describe('card effect text as parts', () => {
   for (const id of IDS) {
     for (const level of LEVELS) {
-      it(`${CARDS[id].name} level ${level}: the parts join to the same sentence as cardEffectText`, () => {
+      it(`${CARDS[id].name} level ${level}: the face phrase is short and carries the same number as the full sentence`, () => {
         const c = card(id, level);
         const parts = cardEffectParts(c);
-        expect(joined(parts)).toBe(cardEffectText(c));
+        expect(joined(parts).length).toBeLessThanOrEqual(18);
+        expect(joined(parts).length).toBeLessThan(cardEffectText(c).length);
+        expect(cardEffectText(c).match(/\d+/g) ?? []).toEqual(joined(parts).match(/\d+/g) ?? []);
         const values = parts.filter((p) => p.kind === 'value');
         const value = cardValue(c);
         if (value === null) expect(values).toEqual([]);
@@ -110,6 +112,13 @@ describe('card effect text as parts', () => {
       });
     }
   }
+
+  it('the face shows a verb and the number, as the author asked on 2026-11-19', () => {
+    expect(joined(cardEffectParts(card('slash')))).toBe('Deal 4');
+    expect(joined(cardEffectParts(card('parry', 3)))).toBe('Block 9');
+    expect(joined(cardEffectParts(card('whetstone', 2)))).toBe('Next card +2');
+    expect(joined(cardEffectParts(card('echo')))).toBe('Copy previous card');
+  });
 
   it('the full sentences used by the aria-label and the log are unchanged', () => {
     expect(cardEffectText(card('slash'))).toBe('Deals 4 damage to the opposing slot.');
@@ -125,7 +134,7 @@ describe('card effect text as parts', () => {
   });
 
   it('edge: a value shown from an event payload replaces the card value in the parts', () => {
-    expect(joined(cardEffectParts(card('slash'), 6))).toBe('Deals 6 damage to the opposing slot.');
+    expect(joined(cardEffectParts(card('slash'), 6))).toBe('Deal 6');
   });
 
   it('edge: Echo has no number, so no part is a value', () => {
@@ -146,12 +155,13 @@ describe('card text layout', () => {
     });
   }
 
-  it('edge: Parry level 3, the longest text, wraps to fit the smallest stone; measured widths fit the box', () => {
-    const c = card('parry', 3);
+  it('edge: Echo, the longest face phrase, fits the smallest stone; measured widths fit the box', () => {
+    const c = card('echo');
+    const longest = Math.max(...IDS.flatMap((id) => LEVELS.map((level) => joined(cardEffectParts(card(id, level))).length)));
+    expect(joined(cardEffectParts(c)).length).toBe(longest);
     const box = cardFaceLayout(smallest).text;
     const out = layoutCardText(cardEffectParts(c), box, measure);
-    expect(out.lines.length).toBeGreaterThan(1);
-    expect(out.lines.map((l) => l.runs.map((r) => r.text).join('')).join(' ')).toBe(cardEffectText(c));
+    expect(out.lines.map((l) => l.runs.map((r) => r.text).join('')).join(' ')).toBe(joined(cardEffectParts(c)));
     for (const line of out.lines) {
       // Re-measure each line from its runs, in each run's own font, as the browser would draw it.
       const width = line.runs.reduce((n, r) => n + textWidth(r.text, r.font), 0);
@@ -220,9 +230,9 @@ describe('drawing a stone', () => {
       const l = look(c);
       const { drawn } = draw(box, c, l);
       expect(drawn.some((d) => d.text === l.name)).toBe(true);
-      // Words are drawn in runs per style; joining them gives the sentence back.
-      expect(sentence(drawn, l.name)).toBe(cardEffectText(c));
-      // The value appears once, as part of the sentence (no medallion copy of it).
+      // Words are drawn in runs per style; joining them gives the face phrase back.
+      expect(sentence(drawn, l.name)).toBe(joined(cardEffectParts(c)));
+      // The value appears once, as part of the phrase (no medallion copy of it).
       const value = cardValue(c);
       if (value !== null) expect(drawn.filter((d) => d.text.replace('+', '') === String(value))).toHaveLength(1);
     });
@@ -233,7 +243,7 @@ describe('drawing a stone', () => {
     const { drawn } = draw(STONES.slot, c, look(c));
     const six = drawn.filter((d) => d.text === '6');
     expect(six).toHaveLength(1);
-    const plain = drawn.filter((d) => d.text.startsWith('Deals'));
+    const plain = drawn.filter((d) => d.text.startsWith('Deal'));
     expect(plain).toHaveLength(1);
     expect(weightOf(six[0]?.font ?? '')).toBeGreaterThan(weightOf(plain[0]?.font ?? ''));
     expect(six[0]?.fillStyle).not.toBe(plain[0]?.fillStyle);
