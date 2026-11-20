@@ -1,0 +1,592 @@
+[
+ {
+  "pr": 2,
+  "id": "731dc82a-86b5-4b95-ae93-f693aee308e8",
+  "title": "CLI crashes with a raw stack trace on a bad seed",
+  "category": "Correctness",
+  "action_level": "informational",
+  "status": "implemented",
+  "file": "cli/play.ts",
+  "reviewed_sha": "be47960"
+ },
+ {
+  "pr": 2,
+  "id": "eb38da21-c9cd-4192-bca9-16ff6c788f05",
+  "title": "Players cannot hear which slots are legal",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "web/main.ts",
+  "reviewed_sha": "be47960"
+ },
+ {
+  "pr": 2,
+  "id": "14edaa1e-5e04-4f61-b592-b20c24eb75f7",
+  "title": "Selecting a card loses keyboard focus",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "web/main.ts",
+  "reviewed_sha": "be47960"
+ },
+ {
+  "pr": 2,
+  "id": "7c397085-9d79-4d70-ad9c-a1ca825aefb7",
+  "title": "Starting a new battle mid-round can make the next round skip beats",
+  "category": "Reliability",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "web/main.ts",
+  "reviewed_sha": "be47960"
+ },
+ {
+  "pr": 2,
+  "id": "40af369f-8a9d-4878-a2e1-3088e0a97d5e",
+  "title": "The web build rejects supported Node versions",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "package.json",
+  "reviewed_sha": "be47960"
+ },
+ {
+  "pr": 4,
+  "id": "c4db4fe5-0243-41a7-a47c-b0ec2fbb67ae",
+  "title": "Reduced-motion players never see a block on the board",
+  "category": "Correctness",
+  "action_level": "informational",
+  "status": "implemented",
+  "file": "web/main.ts",
+  "reviewed_sha": "efe9d80"
+ },
+ {
+  "pr": 6,
+  "id": "715e3662-6a70-4d03-a24c-bc6812bedf22",
+  "title": "A broken scene crashes the run with no report",
+  "category": "Reliability",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "scripts/scenes.ts",
+  "reviewed_sha": "afbd5b0"
+ },
+ {
+  "pr": 6,
+  "id": "a18136cf-f6aa-4f55-9684-4ca970de78e7",
+  "title": "HP text can use fallback fonts in screenshots",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "web/scene.ts",
+  "reviewed_sha": "afbd5b0"
+ },
+ {
+  "pr": 6,
+  "id": "cbb7427b-7b10-4669-a3d9-5aa36e1ca0e0",
+  "title": "Scene page hardcodes the player's starting HP",
+  "category": "Maintainability",
+  "action_level": "informational",
+  "status": "implemented",
+  "file": "web/scene.ts",
+  "reviewed_sha": "afbd5b0"
+ },
+ {
+  "pr": 8,
+  "id": "1820708e-d8cb-4ebd-9916-6f9d15b0d86d",
+  "title": "Finished battles leave cards clickable",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "web/look.ts",
+  "reviewed_sha": "6bd5453"
+ },
+ {
+  "pr": 8,
+  "id": "20044972-5a43-4546-aceb-9f6654576566",
+  "title": "HP number drops before the bolt reaches the figure",
+  "category": "Correctness",
+  "action_level": "informational",
+  "status": "implemented",
+  "file": "web/main.ts",
+  "reviewed_sha": "6bd5453"
+ },
+ {
+  "pr": 8,
+  "id": "419bed5e-9afe-42f0-829e-72d6f5bfd0ee",
+  "title": "Hand card text shrinks on laptops",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "web/look.ts",
+  "reviewed_sha": "6bd5453"
+ },
+ {
+  "pr": 8,
+  "id": "141e52a0-c4f5-4f47-9f1d-a048ac236145",
+  "title": "Resized previews report old text sizes",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "web/scene.ts",
+  "reviewed_sha": "6bd5453"
+ },
+ {
+  "pr": 8,
+  "id": "4b501a0e-b9aa-4f00-a55e-e4d3e869a06b",
+  "title": "Resizing previews strands the hand",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "web/scene.ts",
+  "reviewed_sha": "6bd5453"
+ },
+ {
+  "pr": 8,
+  "id": "186dcf1f-84d4-4643-a59e-e21cafb5f373",
+  "title": "Scenes can omit pre-hit HP unnoticed",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "tests/scenes.test.ts",
+  "reviewed_sha": "6bd5453"
+ },
+ {
+  "pr": 8,
+  "id": "0076ae07-8e2d-4d26-b9ee-3ba34411981a",
+  "title": "The final hit of a round barely shows before it is wiped",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "web/main.ts",
+  "reviewed_sha": "6bd5453"
+ },
+ {
+  "pr": 10,
+  "id": "89c0c786-dc14-4122-a95a-dff2fdc2861d",
+  "title": "Later rules can escape the test gate",
+  "category": "Correctness",
+  "action_level": "informational",
+  "status": "implemented",
+  "file": "tests/rule-ids.test.ts",
+  "reviewed_sha": "09f4685"
+ },
+ {
+  "pr": 10,
+  "id": "83c75ec3-4962-4e8a-8ac5-32b8ced50b6f",
+  "title": "Markdown claims can evade the gate",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "tests/claims.test.ts",
+  "reviewed_sha": "09f4685"
+ },
+ {
+  "pr": 10,
+  "id": "01311862-9c0b-46a7-8299-ef92a8c8655a",
+  "title": "Mismatched spans hide banned claims",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "tests/claims.test.ts",
+  "reviewed_sha": "09f4685"
+ },
+ {
+  "pr": 10,
+  "id": "c881e4c5-8ec9-4374-b276-8211717acc88",
+  "title": "Skipped tests can certify untested rules",
+  "category": "Correctness",
+  "action_level": "action_required",
+  "status": "implemented",
+  "file": "tests/rule-ids.test.ts",
+  "reviewed_sha": "09f4685"
+ },
+ {
+  "pr": 10,
+  "id": "942f05b6-c78f-4994-bf98-07d2a6d9ddbd",
+  "title": "Untested rules can pass the rule check",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "tests/rule-ids.test.ts",
+  "reviewed_sha": "09f4685"
+ },
+ {
+  "pr": 10,
+  "id": "3bed30d8-cc68-427c-a61e-950e21da6671",
+  "title": "Valid code spans fail the claims check",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "tests/claims.test.ts",
+  "reviewed_sha": "09f4685"
+ },
+ {
+  "pr": 14,
+  "id": "31e8d70a-6522-4072-9900-ae4cccd1f2e8",
+  "title": "Invalid replay options can pass as success",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "cli/replay.ts",
+  "reviewed_sha": "fbe28b3"
+ },
+ {
+  "pr": 17,
+  "id": "34dcfed9-d8d4-44ce-8c39-b58c77b3d4b9",
+  "title": "Final battle health can diverge unnoticed",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "tests/oracle.ts",
+  "reviewed_sha": "7483e07"
+ },
+ {
+  "pr": 17,
+  "id": "5a2a1521-9b47-40b3-aa93-ea5f546d282c",
+  "title": "Invalid requirement statuses go unchecked",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "tests/rule-ids.test.ts",
+  "reviewed_sha": "7483e07"
+ },
+ {
+  "pr": 17,
+  "id": "f687ccd8-982e-4ed4-b73d-d7bb981ca2d1",
+  "title": "Malformed test IDs can pass as valid",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "tests/rule-ids.test.ts",
+  "reviewed_sha": "7483e07"
+ },
+ {
+  "pr": 17,
+  "id": "b6d84f8f-1ebb-4509-a426-d412705b50b3",
+  "title": "Misspelled requirement ids in group titles pass",
+  "category": "Maintainability",
+  "action_level": "informational",
+  "status": "implemented",
+  "file": "tests/rule-ids.test.ts",
+  "reviewed_sha": "7483e07"
+ },
+ {
+  "pr": 19,
+  "id": "57b2fd3f-cd59-4f70-8919-badd11aace90",
+  "title": "Chained Echo highlights the wrong card on the board",
+  "category": "Correctness",
+  "action_level": "informational",
+  "status": "implemented",
+  "file": "web/main.ts",
+  "reviewed_sha": "b3bb8b6"
+ },
+ {
+  "pr": 19,
+  "id": "c06bc20e-8ba0-46b4-9920-6f2ddc043a58",
+  "title": "Saved battles no longer replay reliably",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "engine/battle.ts",
+  "reviewed_sha": "b3bb8b6"
+ },
+ {
+  "pr": 19,
+  "id": "c9b65015-009c-42c3-a9c4-d46d2371321d",
+  "title": "Stale slot-prefix helper no longer matches any event",
+  "category": "Maintainability",
+  "action_level": "informational",
+  "status": "implemented",
+  "file": "present/text.ts",
+  "reviewed_sha": "b3bb8b6"
+ },
+ {
+  "pr": 23,
+  "id": "317de981-5b24-4817-8487-fb76f008c32c",
+  "title": "A reused process ID blocks factory polls",
+  "category": "Reliability",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "factory/run.ts",
+  "reviewed_sha": "87b8f9b"
+ },
+ {
+  "pr": 23,
+  "id": "a171ec8d-4681-4624-8ff7-cdafd986c495",
+  "title": "Agent reports slip into pull requests",
+  "category": "Correctness",
+  "action_level": "action_required",
+  "status": "implemented",
+  "file": "factory/run.ts",
+  "reviewed_sha": "87b8f9b"
+ },
+ {
+  "pr": 23,
+  "id": "eaeb6e3e-09a5-4712-9d51-a61489d65398",
+  "title": "Concurrent runs can claim one ticket",
+  "category": "Reliability",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "factory/run.ts",
+  "reviewed_sha": "87b8f9b"
+ },
+ {
+  "pr": 23,
+  "id": "79f85254-1594-4453-a037-b84e880a0f87",
+  "title": "Failed label updates misroute tickets",
+  "category": "Reliability",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "factory/run.ts",
+  "reviewed_sha": "87b8f9b"
+ },
+ {
+  "pr": 23,
+  "id": "977426bd-78c3-4ce6-a38a-61ffe86dbf43",
+  "title": "Failed runs leave tickets stuck",
+  "category": "Reliability",
+  "action_level": "action_required",
+  "status": "implemented",
+  "file": "factory/run.ts",
+  "reviewed_sha": "87b8f9b"
+ },
+ {
+  "pr": 23,
+  "id": "0ca5f251-11d7-4214-bb1a-28d471f63b56",
+  "title": "Forbidden files enter agent PRs",
+  "category": "Security",
+  "action_level": "action_required",
+  "status": "implemented",
+  "file": "factory/run.ts",
+  "reviewed_sha": "87b8f9b"
+ },
+ {
+  "pr": 23,
+  "id": "30b6f535-4414-4671-87bf-e76d4a0dd306",
+  "title": "Reruns fail after an old branch is deleted",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "factory/run.ts",
+  "reviewed_sha": "87b8f9b"
+ },
+ {
+  "pr": 23,
+  "id": "12910146-e505-4ce1-958c-7e027f7302d0",
+  "title": "Reruns replace an existing PR's code",
+  "category": "Correctness",
+  "action_level": "action_required",
+  "status": "implemented",
+  "file": "factory/run.ts",
+  "reviewed_sha": "87b8f9b"
+ },
+ {
+  "pr": 27,
+  "id": "7b034927-c6a9-4800-8dc1-e2eece0c26a2",
+  "title": "Full boards redo text layout each frame",
+  "category": "Performance",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "web/board.ts",
+  "reviewed_sha": "039c2a2"
+ },
+ {
+  "pr": 27,
+  "id": "19a5b74f-388e-4ee1-8eda-3b5746d0665c",
+  "title": "Phone players cannot read card effects",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "dismissed",
+  "file": "web/card-face.ts",
+  "reviewed_sha": "039c2a2"
+ },
+ {
+  "pr": 27,
+  "id": "03806839-e25e-4ee6-9404-015e366cdab8",
+  "title": "The grow scene describes the wrong text",
+  "category": "Correctness",
+  "action_level": "informational",
+  "status": "implemented",
+  "file": "present/text.ts",
+  "reviewed_sha": "039c2a2"
+ },
+ {
+  "pr": 28,
+  "id": "7034ce0e-6a94-4405-9e29-b9f1726eb379",
+  "title": "A missing review is hidden from the person",
+  "category": "Observability",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "factory/run.ts",
+  "reviewed_sha": "526f175"
+ },
+ {
+  "pr": 29,
+  "id": "6006e2b8-0d69-412b-925f-c0e5bf4eeeed",
+  "title": "Card costs above three fail to compile",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "engine/validate-tables.ts",
+  "reviewed_sha": "73b5eca"
+ },
+ {
+  "pr": 29,
+  "id": "8d72bbcc-ce6f-42cf-aa88-346e55b73cec",
+  "title": "Invalid numbers lose their value in errors",
+  "category": "Observability",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "engine/validate-tables.ts",
+  "reviewed_sha": "73b5eca"
+ },
+ {
+  "pr": 29,
+  "id": "02d7b88a-fea9-4ebf-813f-883f84ba2edd",
+  "title": "Scene previews show impossible enemy levels",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "RULES.md",
+  "reviewed_sha": "73b5eca"
+ },
+ {
+  "pr": 30,
+  "id": "a32baee0-2466-48d9-8cd1-fd7dd3af399e",
+  "title": "Early stops corrupt factory totals",
+  "category": "Correctness",
+  "action_level": "action_required",
+  "status": "implemented",
+  "file": "factory/stats.ts",
+  "reviewed_sha": "04b021a"
+ },
+ {
+  "pr": 30,
+  "id": "03475ea9-2477-40d4-8681-aa4a054dfb5e",
+  "title": "Future records can expose home paths",
+  "category": "Security",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "factory/run.ts",
+  "reviewed_sha": "04b021a"
+ },
+ {
+  "pr": 30,
+  "id": "620a4199-9f17-4d8e-85ed-a28a7685d9be",
+  "title": "One run record omits open findings",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "dismissed",
+  "file": "factory/runs/21-2026-11-19T08-04-19-619Z.json",
+  "reviewed_sha": "04b021a"
+ },
+ {
+  "pr": 30,
+  "id": "26b6b166-e575-484c-a517-aff62cd58b06",
+  "title": "Runs without a pull request count as one",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "factory/stats.ts",
+  "reviewed_sha": "04b021a"
+ },
+ {
+  "pr": 32,
+  "id": "3fc028e7-df2e-4dec-bc85-74562ebc39a8",
+  "title": "A dispute can excuse another finding",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "factory/lessons.ts",
+  "reviewed_sha": "d070521"
+ },
+ {
+  "pr": 32,
+  "id": "765752cd-893b-4c84-8b75-4329b6579193",
+  "title": "Agents can rewrite past lesson records",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "factory/config.json",
+  "reviewed_sha": "d070521"
+ },
+ {
+  "pr": 32,
+  "id": "25989469-05bf-4ab7-b2fe-c04d4d536017",
+  "title": "An old rule can masquerade as a new check",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "factory/lessons.ts",
+  "reviewed_sha": "d070521"
+ },
+ {
+  "pr": 32,
+  "id": "d12ef2df-5fd3-4409-910f-164c62a75cbe",
+  "title": "Later fix rounds reject the lessons log",
+  "category": "Correctness",
+  "action_level": "action_required",
+  "status": "implemented",
+  "file": "factory/run.ts",
+  "reviewed_sha": "d070521"
+ },
+ {
+  "pr": 32,
+  "id": "82466517-c390-44e8-b41c-1eac34d78331",
+  "title": "Lint lessons block every ticket area",
+  "category": "Correctness",
+  "action_level": "action_required",
+  "status": "implemented",
+  "file": "factory/lessons.ts",
+  "reviewed_sha": "d070521"
+ },
+ {
+  "pr": 32,
+  "id": "698d82be-8284-4e56-85b9-0d577a8f7599",
+  "title": "Malformed lessons stop the whole run",
+  "category": "Reliability",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "factory/lessons.ts",
+  "reviewed_sha": "d070521"
+ },
+ {
+  "pr": 32,
+  "id": "498670ba-55ed-4460-a610-d70607cef307",
+  "title": "Old checks count as new finding lessons",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "factory/run.ts",
+  "reviewed_sha": "d070521"
+ },
+ {
+  "pr": 32,
+  "id": "08a39041-7f0b-4240-8d75-4fe69295e804",
+  "title": "Parser errors can pass as lint rules",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "factory/run.ts",
+  "reviewed_sha": "d070521"
+ },
+ {
+  "pr": 32,
+  "id": "a2e6ac93-fcd5-4191-a371-b30fc904ef9b",
+  "title": "Web tickets can weaken engine lint rules",
+  "category": "Security",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "factory/config.json",
+  "reviewed_sha": "d070521"
+ },
+ {
+  "pr": 33,
+  "id": "7f5353ac-9f90-4f37-913a-f6f514efa5cd",
+  "title": "Phone strikes cover health plaques",
+  "category": "Correctness",
+  "action_level": "remediation_recommended",
+  "status": "implemented",
+  "file": "web/layout.ts",
+  "reviewed_sha": "3c2c340"
+ }
+]

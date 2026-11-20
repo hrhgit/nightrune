@@ -1,0 +1,5 @@
+all findings: 59 in 15 PRs
+refuse-input: 18 findings in 8 PRs (2, 8, 10, 14, 17, 29, 30, 32); top folders cli, tests, engine, factory; 18 fixed, 0 dismissed or other
+runner-restart: 9 findings in 2 PRs (23, 28); top folders factory; 9 fixed, 0 dismissed or other
+web-paths: 12 findings in 6 PRs (2, 4, 6, 8, 27, 33); top folders web; 11 fixed, 1 dismissed or other
+not in any candidate: 20
