@@ -76,6 +76,14 @@ Never call the game `balanced`, `fun` or `bug-free`. Report what was run: how ma
 - **Why:** a greedy bot on 200 seeds says something specific; an adjective says nothing a reader can check, and in this project evidence has to be real.
 - **Enforced by:** test: `tests/claims.test.ts` scans tracked Markdown and local post drafts in `submissions/` for those words (outside code spans). PR descriptions are not scanned yet.
 
+### 6. A parser or gate is tested with the inputs it must refuse
+
+Code that reads something a person or an agent wrote and decides valid or invalid, pass or fail comes with tests for three kinds of input: malformed (a seed that is not a number, JSON of the wrong shape), a near miss that looks valid (a longer id such as `R-01.2.3`, a misspelled status, a skipped or commented-out test, a `~~~` line inside a backtick fence), and incomplete (a missing field or option). Each must end as a failure that names the offending value (a non-zero exit, a problem line, or an error that quotes it), never as success, never as a raw stack trace, and never stopping a run that could have reported the problem. A valid input that resembles a near miss must still pass.
+
+- **Applies to:** argument parsing in `cli/`; gates in `tests/` that read RULES.md, test titles or Markdown; `engine/validate-tables.ts`; `factory/` code that reads run records, lessons, tickets or agent output.
+- **Why:** 16 of the 59 findings Qodo raised on this repo's PRs, across 7 PRs and 4 folders, were this kind: a gate or parser accepted an input it should refuse, crashed instead of reporting it, or refused a valid one. Qodo marked all 16 as implemented; whether each fix added a test was not recorded and is not claimed. Counted by `evidence/day05/count.mjs`, whose output a test compares with the numbers here.
+- **Enforced by:** text only. Nothing runs against it: a test can show that a gate refuses the inputs its author thought of, not that the author thought of the right ones. Qodo reviews the PR against this rule once it is imported; the author's mutation check (change the gate, see a test fail) is the proof.
+
 ## Left to judgement
 
 These cannot be checked by a command yet, so reviewers carry them:
