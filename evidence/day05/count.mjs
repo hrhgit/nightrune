@@ -8,7 +8,9 @@ import { readFileSync } from 'node:fs';
 const findings = JSON.parse(readFileSync(new URL('./findings.json', import.meta.url), 'utf8'));
 
 // Candidate 1: a parser, validator or gate is given a malformed, near-miss or incomplete input and
-// accepts it as valid (or crashes on it), or rejects a valid one.
+// accepts it as valid, crashes instead of reporting it, or rejects a valid input that resembles a
+// near miss. This is the same definition as rule 6 in AGENTS.md. Rows about how code aggregates
+// records (factory/stats.ts) are not counted: they are not a decision about valid or invalid input.
 const refuseInput = [
   [2, 'CLI crashes with a raw stack trace on a bad seed'],
   [8, 'Scenes can omit pre-hit HP unnoticed'],
@@ -23,8 +25,6 @@ const refuseInput = [
   [17, 'Malformed test IDs can pass as valid'],
   [17, 'Misspelled requirement ids in group titles pass'],
   [29, 'Invalid numbers lose their value in errors'],
-  [30, 'Early stops corrupt factory totals'],
-  [30, 'Runs without a pull request count as one'],
   [32, 'Parser errors can pass as lint rules'],
   [32, 'Malformed lessons stop the whole run'],
   [32, 'A dispute can excuse another finding'],
