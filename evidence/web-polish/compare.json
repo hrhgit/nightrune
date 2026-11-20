@@ -1,0 +1,320 @@
+{
+  "sameSize": [
+    {
+      "scene": "opening",
+      "reduced": false,
+      "before": [
+        960,
+        540,
+        960
+      ],
+      "after": [
+        960,
+        540,
+        960
+      ],
+      "diff": {
+        "pixels": 518400,
+        "maxChannelDiff": 25,
+        "meanMaxDiff": 0.0068,
+        "pixelsOver1": 49,
+        "pixelsOver4": 30
+      }
+    },
+    {
+      "scene": "opening",
+      "reduced": true,
+      "before": [
+        960,
+        540,
+        960
+      ],
+      "after": [
+        960,
+        540,
+        960
+      ],
+      "diff": {
+        "pixels": 518400,
+        "maxChannelDiff": 25,
+        "meanMaxDiff": 0.0067,
+        "pixelsOver1": 48,
+        "pixelsOver4": 27
+      }
+    },
+    {
+      "scene": "full-lines",
+      "reduced": false,
+      "before": [
+        960,
+        540,
+        960
+      ],
+      "after": [
+        960,
+        540,
+        960
+      ],
+      "diff": {
+        "pixels": 518400,
+        "maxChannelDiff": 25,
+        "meanMaxDiff": 0.0067,
+        "pixelsOver1": 49,
+        "pixelsOver4": 28
+      }
+    },
+    {
+      "scene": "full-lines",
+      "reduced": true,
+      "before": [
+        960,
+        540,
+        960
+      ],
+      "after": [
+        960,
+        540,
+        960
+      ],
+      "diff": {
+        "pixels": 518400,
+        "maxChannelDiff": 24,
+        "meanMaxDiff": 0.0066,
+        "pixelsOver1": 40,
+        "pixelsOver4": 27
+      }
+    },
+    {
+      "scene": "partial-block",
+      "reduced": false,
+      "before": [
+        960,
+        540,
+        960
+      ],
+      "after": [
+        960,
+        540,
+        960
+      ],
+      "diff": {
+        "pixels": 518400,
+        "maxChannelDiff": 25,
+        "meanMaxDiff": 0.0066,
+        "pixelsOver1": 45,
+        "pixelsOver4": 26
+      }
+    },
+    {
+      "scene": "partial-block",
+      "reduced": true,
+      "before": [
+        960,
+        540,
+        960
+      ],
+      "after": [
+        960,
+        540,
+        960
+      ],
+      "diff": {
+        "pixels": 518400,
+        "maxChannelDiff": 26,
+        "meanMaxDiff": 0.0066,
+        "pixelsOver1": 45,
+        "pixelsOver4": 27
+      }
+    },
+    {
+      "scene": "trade-hits",
+      "reduced": false,
+      "before": [
+        960,
+        540,
+        960
+      ],
+      "after": [
+        960,
+        540,
+        960
+      ],
+      "diff": {
+        "pixels": 518400,
+        "maxChannelDiff": 25,
+        "meanMaxDiff": 0.0065,
+        "pixelsOver1": 57,
+        "pixelsOver4": 25
+      }
+    },
+    {
+      "scene": "trade-hits",
+      "reduced": true,
+      "before": [
+        960,
+        540,
+        960
+      ],
+      "after": [
+        960,
+        540,
+        960
+      ],
+      "diff": {
+        "pixels": 518400,
+        "maxChannelDiff": 25,
+        "meanMaxDiff": 0.0065,
+        "pixelsOver1": 60,
+        "pixelsOver4": 25
+      }
+    },
+    {
+      "scene": "low-hp",
+      "reduced": false,
+      "before": [
+        960,
+        540,
+        960
+      ],
+      "after": [
+        960,
+        540,
+        960
+      ],
+      "diff": {
+        "pixels": 518400,
+        "maxChannelDiff": 25,
+        "meanMaxDiff": 0.0073,
+        "pixelsOver1": 51,
+        "pixelsOver4": 26
+      }
+    },
+    {
+      "scene": "low-hp",
+      "reduced": true,
+      "before": [
+        960,
+        540,
+        960
+      ],
+      "after": [
+        960,
+        540,
+        960
+      ],
+      "diff": {
+        "pixels": 518400,
+        "maxChannelDiff": 25,
+        "meanMaxDiff": 0.0071,
+        "pixelsOver1": 41,
+        "pixelsOver4": 27
+      }
+    }
+  ],
+  "frames": [
+    {
+      "view": "phone 375x812 @3x",
+      "build": "before",
+      "store": "2880x1620",
+      "shownCss": "343x193",
+      "megapixels": 4.67,
+      "medianMsPerFrame3Runs": [
+        63.5,
+        61.6,
+        60.4
+      ],
+      "canvasesCreatedDuring200Frames": 0
+    },
+    {
+      "view": "phone 375x812 @3x",
+      "build": "after",
+      "store": "1029x1239",
+      "shownCss": "343x413",
+      "megapixels": 1.27,
+      "medianMsPerFrame3Runs": [
+        5.1,
+        5.5,
+        5.6
+      ],
+      "canvasesCreatedDuring200Frames": 0
+    },
+    {
+      "view": "phone 375x812 @2x",
+      "build": "before",
+      "store": "1920x1080",
+      "shownCss": "343x193",
+      "megapixels": 2.07,
+      "medianMsPerFrame3Runs": [
+        29.1,
+        28.6,
+        29.5
+      ],
+      "canvasesCreatedDuring200Frames": 0
+    },
+    {
+      "view": "phone 375x812 @2x",
+      "build": "after",
+      "store": "686x826",
+      "shownCss": "343x413",
+      "megapixels": 0.57,
+      "medianMsPerFrame3Runs": [
+        4.2,
+        4.8,
+        3.6
+      ],
+      "canvasesCreatedDuring200Frames": 0
+    },
+    {
+      "view": "desktop 1280x800 @1x",
+      "build": "before",
+      "store": "960x540",
+      "shownCss": "912x513",
+      "megapixels": 0.52,
+      "medianMsPerFrame3Runs": [
+        9.9,
+        10.2,
+        10.6
+      ],
+      "canvasesCreatedDuring200Frames": 0
+    },
+    {
+      "view": "desktop 1280x800 @1x",
+      "build": "after",
+      "store": "912x513",
+      "shownCss": "912x513",
+      "megapixels": 0.47,
+      "medianMsPerFrame3Runs": [
+        4.2,
+        4.3,
+        4
+      ],
+      "canvasesCreatedDuring200Frames": 0
+    },
+    {
+      "view": "desktop 1440x900 @2x",
+      "build": "before",
+      "store": "1920x1080",
+      "shownCss": "952x536",
+      "megapixels": 2.07,
+      "medianMsPerFrame3Runs": [
+        32,
+        31,
+        31.3
+      ],
+      "canvasesCreatedDuring200Frames": 0
+    },
+    {
+      "view": "desktop 1440x900 @2x",
+      "build": "after",
+      "store": "1904x1071",
+      "shownCss": "952x536",
+      "megapixels": 2.04,
+      "medianMsPerFrame3Runs": [
+        7.3,
+        7.5,
+        7.5
+      ],
+      "canvasesCreatedDuring200Frames": 0
+    }
+  ]
+}

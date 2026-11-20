@@ -6,6 +6,7 @@ import { CARDS, type CardId } from '../data/cards.ts';
 import { cardValue, type CardInstance, type Level } from '../engine/index.ts';
 import { cardEffectParts, cardEffectText, type EffectPart } from '../present/text.ts';
 import { cardFaceLayout, layoutCardText, type Box } from '../web/card-face.ts';
+import { slotRect, WIDE } from '../web/layout.ts';
 import { textWidth } from './font-metrics.ts';
 
 // web/board.ts and web/look.ts are typed against the DOM and checked by web/tsconfig.json; the root
@@ -26,7 +27,6 @@ interface StoneOptions {
 }
 interface BoardApi {
   drawStone(ctx: unknown, box: Box, card: CardInstance | null, look: StoneLook | null, opts: StoneOptions): void;
-  slotRect(side: 'player' | 'enemy', slot: number): Box;
   clearCardTextCache(): void;
 }
 interface LookApi {
@@ -34,7 +34,7 @@ interface LookApi {
   readonly HAND_STONE_BOX: Box;
 }
 const webModule = (name: string): Promise<unknown> => import(`../web/${name}.ts`);
-const { drawStone, slotRect, clearCardTextCache } = (await webModule('board')) as BoardApi;
+const { drawStone, clearCardTextCache } = (await webModule('board')) as BoardApi;
 const { HAND_STONE_BOX, look } = (await webModule('look')) as LookApi;
 
 const IDS = Object.keys(CARDS) as CardId[];
@@ -43,8 +43,8 @@ const card = (cardId: string, level: Level = 1, growth = 0): CardInstance => ({ 
 const joined = (parts: readonly EffectPart[]): string => parts.map((p) => p.text).join('');
 const OPTS: StoneOptions = { glow: 0, highlight: 'none', pulse: 1, key: 'test' };
 
-/** The two stone sizes the page draws: a line slot and a hand card. */
-const STONES = { slot: slotRect('player', 1), hand: HAND_STONE_BOX } as const;
+/** The two stone sizes the page draws: a line slot (the same size in every layout) and a hand card. */
+const STONES = { slot: slotRect(WIDE, 'player', 1), hand: HAND_STONE_BOX } as const;
 const smallest = Object.values(STONES).reduce((a, b) => (a.w * a.h <= b.w * b.h ? a : b));
 
 interface Drawn {
@@ -222,8 +222,8 @@ describe('drawing a stone', () => {
 
   const cases: [string, { x: number; y: number; w: number; h: number }, CardInstance][] = [
     ['hand', STONES.hand, card('parry', 3)],
-    ['player line', slotRect('player', 2), card('whetstone', 2)],
-    ['enemy line', slotRect('enemy', 1), card('dummy-swing')],
+    ['player line', slotRect(WIDE, 'player', 2), card('whetstone', 2)],
+    ['enemy line', slotRect(WIDE, 'enemy', 1), card('dummy-swing')],
   ];
   for (const [where, box, c] of cases) {
     it(`a ${where} stone draws its name and its effect text, and nothing else`, () => {

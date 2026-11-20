@@ -12,7 +12,7 @@ One battle against the Training Dummy is playable in the browser and from the co
 
 - `engine/` – pure battle engine: `step(state, action) → { state, events }`. Drawing, energy, placement, head-to-head slot resolution, battle end, round limit, and a seeded generator kept in the state. Placement legality is exposed as `checkPlace` / `legalPlacements`.
 - `data/` – the card, enemy, deck and rule-constant tables. All numbers live here.
-- `web/` – the page: the battlefield is drawn on a Canvas ("runestone night camp"), controls and the battle log are HTML. It only shows engine state and sends actions.
+- `web/` – the page: the battlefield is drawn on a Canvas ("runestone night camp"), controls and the battle log are HTML. It only shows engine state and sends actions. The board has two layouts (`web/layout.ts`): wide, with the two lines side by side, and tall for screens under 700 px, with the enemy's line along the top and the player's along the bottom.
 - `present/` – event and card text shared by the page and the CLI.
 - `bots/greedy.ts` – a simple bot used by the CLI and by invariant tests.
 - `web/scene.html` – the scene preview page; `scripts/scenes.ts` screenshots it headless (see below).
@@ -38,7 +38,7 @@ npm run check         # typecheck + lint + tests + build (same as CI)
 
 ### Check how it looks
 
-`web/scene.html` (also at <https://hrhgit.github.io/nightrune/scene.html>) draws hand-built board moments from `web/scenes.ts` with the game's own drawing code, frozen in time: a bolt in flight, a Parry block, a partial block, both sides hitting, full lines, low HP. Add a scene there instead of playing up to the moment you want to see.
+`web/scene.html` (also at <https://hrhgit.github.io/nightrune/scene.html>) draws hand-built board moments from `web/scenes.ts` with the game's own drawing code, frozen in time: a bolt in flight, a Parry block, a partial block, the enemy blocking, both sides hitting, full lines, low HP. Add a scene there instead of playing up to the moment you want to see.
 
 ```bash
 npm run scenes                    # every scene at desktop, phone and phone + reduced motion

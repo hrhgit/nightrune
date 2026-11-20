@@ -188,6 +188,24 @@ export const SCENES: readonly SceneSpec[] = [
     ],
   },
   {
+    id: 'enemy-block',
+    title: 'The enemy blocks',
+    look: 'Slot 2 firing: a ward under the enemy Parry with "Blocked 4", a thinner bolt goes on to the dummy for 2, passing behind the HP plaques. On the tall board the ward ends above the plaques. The enemy Parry is placed by hand (R-17 shared effects).',
+    seed: 13,
+    enemyLine: [null, 'parry', null, 'dummy-swing'],
+    playerLine: [null, ['slash', 2], null, null],
+    hp: { enemy: [22, 24, 24] },
+    cursor: 2,
+    firing: [
+      { side: 'enemy', slot: 2, glow: 1 },
+      { side: 'player', slot: 2, glow: 1 },
+    ],
+    impacts: [
+      { event: { type: 'block', round: 2, slot: 2, side: 'enemy', incoming: 6, blocked: 4 }, age: 0.42 },
+      { event: { type: 'damage', round: 2, slot: 2, target: 'enemy', amount: 2, hpAfter: 22 }, age: 0.42 },
+    ],
+  },
+  {
     id: 'bolt-flying',
     title: 'Bolt in flight',
     look: 'Slot 1 just fired: a bolt leaves the player Slash toward the enemy line; no number yet.',
