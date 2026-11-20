@@ -22,8 +22,9 @@ import {
 } from '../engine/index.ts';
 import { parseSeed, SEED_HELP } from '../present/seed.ts';
 import { battleEndText, cardEffectParts, cardEffectText, cardName, eventText, rejectText } from '../present/text.ts';
-import { BOARD, drawBoard, slotRect, type Impact } from './board.ts';
-import { handCanvas, look, watchHand } from './look.ts';
+import { drawBoard, type Impact } from './board.ts';
+import { slotRect, type BoardFit } from './layout.ts';
+import { handCanvas, look, sizeBoardCanvas, watchBoard } from './look.ts';
 
 const ENEMY_ID: EnemyId = 'training-dummy';
 const BEAT_MS = { slot: 700, emptySlot: 220, pre: 260 } as const;
@@ -97,6 +98,8 @@ interface App {
 }
 
 let app: App;
+/** The board's layout and the hand's place, from the width the board has on screen (set in Wiring). */
+let fit: BoardFit;
 
 function randomSeed(): number {
   // Picking a fresh seed is the only use of randomness outside the engine; the seed is shown
@@ -178,21 +181,28 @@ function slotLabel(slot: number): string {
 
 function buildSlotButtons(): void {
   for (let slot = 1; slot <= app.state.player.line.length; slot++) {
-    const r = slotRect('player', slot);
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'slot';
     btn.dataset['slot'] = String(slot);
-    btn.style.left = `${(r.x / BOARD.width) * 100}%`;
-    btn.style.top = `${(r.y / BOARD.height) * 100}%`;
-    btn.style.width = `${(r.w / BOARD.width) * 100}%`;
-    btn.style.height = `${(r.h / BOARD.height) * 100}%`;
     btn.addEventListener('click', () => onSlot(slot));
     btn.addEventListener('pointerenter', () => (app.hoverSlot = slot));
     btn.addEventListener('pointerleave', () => (app.hoverSlot = null));
     btn.addEventListener('focus', () => (app.hoverSlot = slot));
     btn.addEventListener('blur', () => (app.hoverSlot = null));
     slotsEl.append(btn);
+  }
+}
+
+/** Puts each slot button over its stone in the current layout. */
+function placeSlotButtons(): void {
+  const L = fit.layout;
+  for (const btn of slotsEl.querySelectorAll<HTMLButtonElement>('button.slot')) {
+    const r = slotRect(L, 'player', Number(btn.dataset['slot']));
+    btn.style.left = `${(r.x / L.width) * 100}%`;
+    btn.style.top = `${(r.y / L.height) * 100}%`;
+    btn.style.width = `${(r.w / L.width) * 100}%`;
+    btn.style.height = `${(r.h / L.height) * 100}%`;
   }
 }
 
@@ -482,16 +492,19 @@ function tick(now: number): void {
 // Drawing
 // ---------------------------------------------------------------------------
 
-function resizeCanvas(): void {
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.round(BOARD.width * dpr);
-  canvas.height = Math.round(BOARD.height * dpr);
+/** Follows a new fit or a new size on screen: slot buttons, the canvas's label and its pixels. */
+function refit(next: BoardFit): void {
+  fit = next;
+  placeSlotButtons();
+  canvas.setAttribute('aria-label', `The camp at night: ${fit.layout.description}`);
+  // Resizing clears the canvas, so draw at once instead of leaving it blank until the next frame.
+  if (sizeBoardCanvas(canvas, fit.layout)) draw(performance.now());
 }
 
 function draw(now: number): void {
   if (ctx === null) return;
-  const dpr = canvas.width / BOARD.width;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const k = canvas.width / fit.layout.width;
+  ctx.setTransform(k, 0, 0, k, 0, 0);
   const selected = app.selected;
   const targets = new Set<number>(
     selected === null || app.anim !== null ? [] : legalPlacements(app.state).flatMap((p) => (p.uid === selected ? [p.slot] : [])),
@@ -503,6 +516,7 @@ function draw(now: number): void {
     return before === null ? base : { ...base, before };
   };
   drawBoard(ctx, {
+    layout: fit.layout,
     seed: app.state.seed,
     time: now,
     motion: !motionQuery.matches,
@@ -520,7 +534,7 @@ function draw(now: number): void {
     targets,
     hoverSlot: app.hoverSlot,
     impacts,
-    handTray,
+    handTray: fit.handInTray,
   });
 }
 
@@ -542,18 +556,17 @@ seedForm.addEventListener('submit', (ev) => {
   }
   startGame(seed);
 });
-window.addEventListener('resize', resizeCanvas);
-
-// The hand sits in the board's tray on wide screens and below the board on narrow ones.
-const boardWrap = slotsEl.parentElement as HTMLElement;
-let handTray = watchHand(handEl, boardWrap, { before: runBtn }, (inTray) => {
-  handTray = inTray;
-});
 
 const urlSeed = parseSeed(new URL(window.location.href).searchParams.get('seed') ?? '');
-resizeCanvas();
 startGame(urlSeed ?? randomSeed());
 buildSlotButtons();
+// The board is wide with the hand in its tray on a wide screen, wide with the hand below it on a
+// medium one, and tall on a phone. The width that decides is the battlefield section's, not the
+// board's own: a tall board is narrower than the section.
+const boardWrap = slotsEl.parentElement as HTMLElement;
+refit(watchBoard({ measured: boardWrap.parentElement as HTMLElement, wrap: boardWrap, canvas, hand: handEl, below: { before: runBtn } }, refit));
+// A zoom or a move to another screen changes the pixel ratio without resizing the section.
+window.addEventListener('resize', () => refit(fit));
 renderControls();
 void document.fonts.ready.then(() => renderControls());
 requestAnimationFrame(tick);

@@ -10,40 +10,17 @@ import { nextUint32, type CardInstance, type GameEvent, type Owner, type Slot } 
 import type { EffectPart } from '../present/text.ts';
 import { cardFaceLayout, layoutCardText, type Box, type CardTextLayout } from './card-face.ts';
 import { drawEnemyFigure, drawWayfarer, type Reaction } from './figures.ts';
+import { SLOT_NUMBER, SLOT_STONE, slotRect, slotX, strikePath, WIDE, type BoardLayout, type Pt, type Rect } from './layout.ts';
 import { DIRECTION_GLOW, PALETTE } from './palette.ts';
 import { RUNES } from './runes.ts';
 
-export const BOARD = { width: 960, height: 540 } as const;
+/** A hand card's stone. Stones on a line are smaller (SLOT_STONE in layout.ts). */
 export const STONE = { w: 128, h: 116 } as const;
 /*
- * Layout: the player stands on the left, the enemy on the right. Above each head is that side's
- * line: four stones, slot 1 to 4 from left to right, the actions it takes this round. Slot i of
- * one line meets slot i of the other. Between the line and the head is the HP plaque. The
- * campfire sits between the two figures, and the hand tray along the bottom middle.
+ * Where everything sits comes from the scene's layout (web/layout.ts). In both layouts the player
+ * stands on the left and the enemy on the right with the campfire between them; slot i of one line
+ * meets slot i of the other.
  */
-/** A stone on a line (smaller than a hand card). */
-const SLOT_STONE = { w: 104, h: 94 } as const;
-const SLOT_GAP = 4;
-/** Centre x of each side's line and its y. */
-const LINE_CX: Record<Owner, number> = { player: 226, enemy: 734 };
-const LINE_Y = 82;
-const slotX = (side: Owner, slot: number): number => LINE_CX[side] + (slot - 2.5) * (SLOT_STONE.w + SLOT_GAP);
-/** Where the treeline meets the ground. */
-const HORIZON_Y = 300;
-const FIGURE: Record<Owner, { readonly x: number; readonly y: number; readonly size: number }> = {
-  player: { x: 226, y: 404, size: 182 },
-  enemy: { x: 734, y: 404, size: 176 },
-};
-const HP_PLAQUE = { w: 214, h: 46 } as const;
-const HP_Y = LINE_Y + SLOT_STONE.h / 2 + 12;
-const FIRE = { x: 480, y: 384, scale: 0.64 } as const;
-/** The hand tray, bottom middle. The page lays the hand's buttons over it (see handTrayRect). */
-const HAND_TRAY = { x: 236, y: 418, w: 488, h: 118 } as const;
-
-/** The hand tray in board units, for placing the HTML hand over it. */
-export function handTrayRect(): { x: number; y: number; w: number; h: number } {
-  return { ...HAND_TRAY };
-}
 
 /** Phases of one impact, as fractions of its life (0 = event fired, 1 = gone). */
 const PHASE = { bolt: 0.28, through: 0.5 } as const;
@@ -65,6 +42,8 @@ export interface StoneLook {
 }
 
 export interface Scene {
+  /** Where things go; the page picks it from the board's width on screen. */
+  readonly layout: BoardLayout;
   readonly seed: number;
   readonly time: number;
   readonly motion: boolean;
@@ -85,14 +64,6 @@ export interface Scene {
   /** Draw the hand tray; false when the page shows the hand below the board (narrow screens). */
   readonly handTray: boolean;
 }
-
-/** Rectangle of a slot in board coordinates, used to place the HTML slot buttons. */
-export function slotRect(side: Owner, slot: number): { x: number; y: number; w: number; h: number } {
-  const cx = slotX(side, slot);
-  return { x: cx - SLOT_STONE.w / 2, y: LINE_Y - SLOT_STONE.h / 2, w: SLOT_STONE.w, h: SLOT_STONE.h };
-}
-
-const other = (side: Owner): Owner => (side === 'player' ? 'enemy' : 'player');
 
 // ---------------------------------------------------------------------------
 // Seeded helpers
@@ -150,17 +121,54 @@ const easeOut = (t: number): number => 1 - (1 - t) * (1 - t);
 // ---------------------------------------------------------------------------
 // Scenery
 // ---------------------------------------------------------------------------
+//
+// Sky, moon, treeline and ground are the same in every frame, so they are painted once into two
+// layers and copied onto the board each frame: `back` (sky and moon) and `front` (trees and
+// ground, clear above the trees). Stars twinkle between the two and grass sways over the front
+// one, so those are still drawn every frame. The darkening toward the board's edges is painted
+// into both layers; stars and grass take the same darkening from vignetteDim, because nothing is
+// painted over them any more.
 
-function drawSky(ctx: CanvasRenderingContext2D, scene: Scene): void {
-  const g = ctx.createLinearGradient(0, 0, 0, HORIZON_Y + 20);
+/** The edge darkening: none inside r0 of the centre, strongest (alpha `max`) from r1 outward. */
+function vignetteOf(L: BoardLayout): { cx: number; cy: number; r0: number; r1: number; max: number } {
+  const s = Math.max(L.width, L.height) / WIDE.width;
+  return { cx: L.width * 0.55, cy: L.height * 0.55, r0: 160 * s, r1: 620 * s, max: 0.45 };
+}
+
+/** How much of a color the edge darkening leaves at a point: 1 in the middle, less toward the corners. */
+function vignetteDim(L: BoardLayout, x: number, y: number): number {
+  const v = vignetteOf(L);
+  return 1 - v.max * window01(Math.hypot(x - v.cx, y - v.cy), v.r0, v.r1);
+}
+
+/** Darkens what is already painted on a layer, and leaves its clear parts clear. */
+function paintVignette(ctx: CanvasRenderingContext2D, L: BoardLayout): void {
+  const v = vignetteOf(L);
+  const g = ctx.createRadialGradient(v.cx, v.cy, v.r0, v.cx, v.cy, v.r1);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, `rgba(0,0,0,${v.max})`);
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, L.width, L.height);
+  ctx.restore();
+}
+
+/** A hex color with each channel multiplied by k (0..1). */
+function dim(hex: string, k: number): string {
+  const c = [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * k));
+  return `rgb(${c.join(',')})`;
+}
+
+function paintSky(ctx: CanvasRenderingContext2D, L: BoardLayout): void {
+  const g = ctx.createLinearGradient(0, 0, 0, L.horizonY + 20);
   g.addColorStop(0, PALETTE.skyHigh);
   g.addColorStop(1, PALETTE.sky);
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, BOARD.width, HORIZON_Y + 20);
+  ctx.fillRect(0, 0, L.width, L.horizonY + 20);
 
-  // Moon with a soft halo, top right, behind the treeline.
-  const mx = 480;
-  const my = 150;
+  // Moon with a soft halo, behind the treeline.
+  const { x: mx, y: my } = L.moon;
   const halo = ctx.createRadialGradient(mx, my, 8, mx, my, 90);
   halo.addColorStop(0, rgba(PALETTE.moon, 0.22));
   halo.addColorStop(1, rgba(PALETTE.moon, 0));
@@ -180,35 +188,68 @@ function drawSky(ctx: CanvasRenderingContext2D, scene: Scene): void {
     ctx.arc(mx + dx, my + dy, r, 0, Math.PI * 2);
     ctx.fill();
   }
+}
 
-  const v = seededFor(`stars:${scene.seed}`, 90 * 4);
-  for (let i = 0; i < 90; i++) {
-    const at = (k: number): number => v[i * 4 + k] ?? 0;
-    const x = at(0) * BOARD.width;
-    const y = Math.pow(at(1), 1.4) * (HORIZON_Y - 6);
-    const twinkle = scene.motion ? 0.7 + 0.3 * Math.sin(scene.time * 0.0016 + at(3) * 6.28) : 1;
-    ctx.globalAlpha = (0.25 + at(2) * 0.6) * twinkle;
-    ctx.fillStyle = PALETTE.text;
+interface Star {
+  readonly x: number;
+  readonly y: number;
+  readonly r: number;
+  readonly alpha: number;
+  readonly phase: number;
+  readonly color: string;
+}
+
+/** Scenery details that are worked out once per layout and seed, then drawn every frame. */
+const detailCache = new Map<string, unknown>();
+function details<T>(key: string, build: () => T): T {
+  if (detailCache.has(key)) return detailCache.get(key) as T;
+  if (detailCache.size > 16) detailCache.clear();
+  const v = build();
+  detailCache.set(key, v);
+  return v;
+}
+
+function starsOf(L: BoardLayout, seed: number): readonly Star[] {
+  return details(`stars:${L.id}:${seed}`, () => {
+    // As many stars per unit of width as the wide board has.
+    const count = Math.round((90 * L.width) / WIDE.width);
+    const v = seededFor(`stars:${seed}`, count * 4);
+    return Array.from({ length: count }, (_, i): Star => {
+      const at = (k: number): number => v[i * 4 + k] ?? 0;
+      const x = at(0) * L.width;
+      const y = Math.pow(at(1), 1.4) * (L.horizonY - 6);
+      return { x, y, r: 0.5 + at(2) * 1.1, alpha: 0.25 + at(2) * 0.6, phase: at(3) * 6.28, color: dim(PALETTE.text, vignetteDim(L, x, y)) };
+    });
+  });
+}
+
+function drawStars(ctx: CanvasRenderingContext2D, scene: Scene): void {
+  for (const s of starsOf(scene.layout, scene.seed)) {
+    const twinkle = scene.motion ? 0.7 + 0.3 * Math.sin(scene.time * 0.0016 + s.phase) : 1;
+    ctx.globalAlpha = s.alpha * twinkle;
+    ctx.fillStyle = s.color;
     ctx.beginPath();
-    ctx.arc(x, y, 0.5 + at(2) * 1.1, 0, Math.PI * 2);
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
 }
 
 /** Two rows of pine silhouettes along the horizon. */
-function drawTreeline(ctx: CanvasRenderingContext2D, scene: Scene): void {
+function paintTreeline(ctx: CanvasRenderingContext2D, L: BoardLayout, seed: number): void {
   const rows: [string, number, number, number][] = [
-    [PALETTE.treelineNear, HORIZON_Y - 2, 46, 34],
-    [PALETTE.treeline, HORIZON_Y + 8, 58, 26],
+    [PALETTE.treelineNear, L.horizonY - 2, 46, 34],
+    [PALETTE.treeline, L.horizonY + 8, 58, 26],
   ];
-  rows.forEach(([color, base, height, count], row) => {
-    const v = seededFor(`trees:${row}:${scene.seed}`, count * 3);
+  rows.forEach(([color, base, height, perWideBoard], row) => {
+    const count = Math.round((perWideBoard * L.width) / WIDE.width);
+    // One tree more than there are numbers for: the tree on the right edge takes the middle values.
+    const v = seededFor(`trees:${row}:${seed}`, count * 3);
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(0, base + 14);
     for (let i = 0; i <= count; i++) {
-      const x = (i / count) * BOARD.width + ((v[i * 3] ?? 0.5) - 0.5) * 18;
+      const x = (i / count) * L.width + ((v[i * 3] ?? 0.5) - 0.5) * 18;
       const h = height * (0.55 + (v[i * 3 + 1] ?? 0.5) * 0.6);
       const w = 14 + (v[i * 3 + 2] ?? 0.5) * 12;
       // A pine: three stacked tiers.
@@ -224,37 +265,46 @@ function drawTreeline(ctx: CanvasRenderingContext2D, scene: Scene): void {
       ctx.lineTo(x + w * 0.45, base - h * 0.42);
       ctx.lineTo(x + w, base);
     }
-    ctx.lineTo(BOARD.width, base + 14);
+    ctx.lineTo(L.width, base + 14);
     ctx.closePath();
     ctx.fill();
   });
 }
 
-function drawGround(ctx: CanvasRenderingContext2D, scene: Scene): void {
-  const top = HORIZON_Y + 14;
-  const g = ctx.createLinearGradient(0, top, 0, BOARD.height);
+/** Ground details: counts keep the wide board's density, and one seeded list feeds all three kinds in order. */
+function groundOf(L: BoardLayout, seed: number): { top: number; moss: number; pebbles: number; grass: number; v: readonly number[] } {
+  const top = L.horizonY + 14;
+  const share = (L.width * (L.height - top)) / (WIDE.width * (WIDE.height - (WIDE.horizonY + 14)));
+  const moss = Math.round(40 * share);
+  const pebbles = Math.round(50 * share);
+  const grass = Math.round(60 * share);
+  return { top, moss, pebbles, grass, v: seededFor(`ground:${seed}`, moss * 4 + pebbles * 3 + grass * 3) };
+}
+
+/** The ground with its moss patches and pebbles, all seeded. Grass is drawn each frame (drawGrass). */
+function paintGround(ctx: CanvasRenderingContext2D, L: BoardLayout, seed: number): void {
+  const { top, moss, pebbles, v } = groundOf(L, seed);
+  const g = ctx.createLinearGradient(0, top, 0, L.height);
   g.addColorStop(0, PALETTE.groundFar);
   g.addColorStop(0.35, PALETTE.ground);
   g.addColorStop(1, PALETTE.groundFar);
   ctx.fillStyle = g;
-  ctx.fillRect(0, top, BOARD.width, BOARD.height - top);
+  ctx.fillRect(0, top, L.width, L.height - top);
 
-  // Moss patches, pebbles and grass tufts, all seeded.
-  const v = seededFor(`ground:${scene.seed}`, 40 * 4 + 50 * 3 + 60 * 3);
   let k = 0;
   const next = (): number => v[k++] ?? 0.5;
-  for (let i = 0; i < 40; i++) {
-    const x = next() * BOARD.width;
-    const y = top + 10 + next() * (BOARD.height - top - 10);
+  for (let i = 0; i < moss; i++) {
+    const x = next() * L.width;
+    const y = top + 10 + next() * (L.height - top - 10);
     const r = 18 + next() * 46;
     ctx.fillStyle = rgba(next() > 0.5 ? PALETTE.moss : PALETTE.mossLight, 0.35);
     ctx.beginPath();
     ctx.ellipse(x, y, r, r * 0.35, 0, 0, Math.PI * 2);
     ctx.fill();
   }
-  for (let i = 0; i < 50; i++) {
-    const x = next() * BOARD.width;
-    const y = top + 8 + next() * (BOARD.height - top - 8);
+  for (let i = 0; i < pebbles; i++) {
+    const x = next() * L.width;
+    const y = top + 8 + next() * (L.height - top - 8);
     const r = 1.5 + next() * 3.5;
     ctx.fillStyle = PALETTE.pebble;
     ctx.beginPath();
@@ -265,14 +315,35 @@ function drawGround(ctx: CanvasRenderingContext2D, scene: Scene): void {
     ctx.ellipse(x - r * 0.3, y - r * 0.25, r * 0.4, r * 0.25, 0, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.strokeStyle = PALETTE.mossLight;
+}
+
+interface Tuft {
+  readonly x: number;
+  readonly y: number;
+  readonly h: number;
+  readonly color: string;
+}
+
+function tuftsOf(L: BoardLayout, seed: number): readonly Tuft[] {
+  return details(`grass:${L.id}:${seed}`, () => {
+    const { top, moss, pebbles, grass, v } = groundOf(L, seed);
+    // Grass takes its numbers after the moss and pebbles took theirs.
+    let k = moss * 4 + pebbles * 3;
+    const next = (): number => v[k++] ?? 0.5;
+    return Array.from({ length: grass }, (): Tuft => {
+      const x = next() * L.width;
+      const y = top + 12 + next() * (L.height - top - 12);
+      return { x, y, h: 4 + next() * 7, color: dim(PALETTE.mossLight, vignetteDim(L, x, y)) };
+    });
+  });
+}
+
+function drawGrass(ctx: CanvasRenderingContext2D, scene: Scene): void {
   ctx.lineWidth = 1.2;
   ctx.lineCap = 'round';
   const sway = scene.motion ? Math.sin(scene.time * 0.0012) * 1.5 : 0;
-  for (let i = 0; i < 60; i++) {
-    const x = next() * BOARD.width;
-    const y = top + 12 + next() * (BOARD.height - top - 12);
-    const h = 4 + next() * 7;
+  for (const { x, y, h, color } of tuftsOf(scene.layout, scene.seed)) {
+    ctx.strokeStyle = color;
     ctx.beginPath();
     for (const lean of [-0.5, 0, 0.6]) {
       ctx.moveTo(x, y);
@@ -280,13 +351,57 @@ function drawGround(ctx: CanvasRenderingContext2D, scene: Scene): void {
     }
     ctx.stroke();
   }
+}
 
-  // Edge darkening, so the eye stays on the stones.
-  const vig = ctx.createRadialGradient(BOARD.width * 0.55, BOARD.height * 0.55, 160, BOARD.width * 0.55, BOARD.height * 0.55, 620);
-  vig.addColorStop(0, 'rgba(0,0,0,0)');
-  vig.addColorStop(1, 'rgba(0,0,0,0.45)');
-  ctx.fillStyle = vig;
-  ctx.fillRect(0, 0, BOARD.width, BOARD.height);
+/** The two painted scenery layers for one layout, seed and pixel scale. */
+interface Backdrop {
+  readonly key: string;
+  readonly back: HTMLCanvasElement;
+  readonly front: HTMLCanvasElement;
+}
+
+let backdrop: Backdrop | null = null;
+/** How many times the scenery layers were painted: the page's frame loop must not make this grow. */
+let backdropPaints = 0;
+export function backdropPaintCount(): number {
+  return backdropPaints;
+}
+
+function paintLayer(L: BoardLayout, scale: number, paint: (ctx: CanvasRenderingContext2D) => void): HTMLCanvasElement {
+  const layer = document.createElement('canvas');
+  layer.width = Math.ceil(L.width * scale);
+  layer.height = Math.ceil(L.height * scale);
+  const ctx = layer.getContext('2d');
+  if (ctx === null) throw new Error('Canvas 2D is not available');
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  paint(ctx);
+  paintVignette(ctx, L);
+  return layer;
+}
+
+/** Draws the scenery up to and including the grass, painting the layers only when layout, seed or scale changed. */
+function drawScenery(ctx: CanvasRenderingContext2D, scene: Scene): void {
+  const L = scene.layout;
+  const t = ctx.getTransform();
+  // Layers are painted at the board's own pixel scale, so copying them does not resample.
+  const scale = Math.hypot(t.a, t.b);
+  const key = `${L.id}:${scene.seed}:${scale}`;
+  if (backdrop === null || backdrop.key !== key) {
+    backdropPaints += 1;
+    backdrop = {
+      key,
+      back: paintLayer(L, scale, (c) => paintSky(c, L)),
+      front: paintLayer(L, scale, (c) => {
+        paintTreeline(c, L, scene.seed);
+        paintGround(c, L, scene.seed);
+      }),
+    };
+  }
+  const copy = (layer: HTMLCanvasElement): void => ctx.drawImage(layer, 0, 0, layer.width / scale, layer.height / scale);
+  copy(backdrop.back);
+  drawStars(ctx, scene);
+  copy(backdrop.front);
+  drawGrass(ctx, scene);
 }
 
 /** The campfire: light on the ground first (drawn early), then the fire itself (drawn later). */
@@ -298,19 +413,23 @@ function fireFlicker(scene: Scene): { t: number; flicker: number; p2: number } {
 
 function drawFirelight(ctx: CanvasRenderingContext2D, scene: Scene): void {
   const { flicker } = fireFlicker(scene);
-  const glow = ctx.createRadialGradient(FIRE.x, FIRE.y, 10, FIRE.x, FIRE.y, 300 + flicker * 14);
+  const fire = scene.layout.fire;
+  const r = (300 + flicker * 14) * (fire.scale / WIDE.fire.scale);
+  const glow = ctx.createRadialGradient(fire.x, fire.y, 10, fire.x, fire.y, r);
   glow.addColorStop(0, 'rgba(255, 150, 70, 0.30)');
   glow.addColorStop(0.5, 'rgba(255, 130, 60, 0.10)');
   glow.addColorStop(1, 'rgba(255, 150, 70, 0)');
   ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, BOARD.width, BOARD.height);
+  // The glow is clear beyond r, so only its own square is filled, not the whole board.
+  ctx.fillRect(fire.x - r, fire.y - r, r * 2, r * 2);
 }
 
 function drawCampfire(ctx: CanvasRenderingContext2D, scene: Scene): void {
   const { t, flicker, p2 } = fireFlicker(scene);
+  const fire = scene.layout.fire;
   ctx.save();
-  ctx.translate(FIRE.x, FIRE.y);
-  ctx.scale(FIRE.scale, FIRE.scale);
+  ctx.translate(fire.x, fire.y);
+  ctx.scale(fire.scale, fire.scale);
 
   // Ring of stones, the back half first.
   const ring = (front: boolean): void => {
@@ -694,10 +813,8 @@ export function drawStone(
 // HP plaques
 // ---------------------------------------------------------------------------
 
-function drawHp(ctx: CanvasRenderingContext2D, side: Owner, label: string, hp: { now: number; max: number }, lostFrom: number | null, lostFade: number): void {
-  const { w, h } = HP_PLAQUE;
-  const x = LINE_CX[side] - w / 2;
-  const y = HP_Y;
+function drawHp(ctx: CanvasRenderingContext2D, plaque: Rect, label: string, hp: { now: number; max: number }, lostFrom: number | null, lostFade: number): void {
+  const { x, y, w, h } = plaque;
   ctx.fillStyle = 'rgba(10,12,20,0.62)';
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, 8);
@@ -715,7 +832,8 @@ function drawHp(ctx: CanvasRenderingContext2D, side: Owner, label: string, hp: {
 
   const barX = x + 12;
   const barY = y + 27;
-  const barW = 122;
+  // The rest of the row holds the numbers, up to "99 / 99".
+  const barW = w - 92;
   const barH = 12;
   ctx.fillStyle = '#0E1118';
   ctx.beginPath();
@@ -754,23 +872,24 @@ function drawCursorTrack(ctx: CanvasRenderingContext2D, scene: Scene): void {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (const side of ['player', 'enemy'] as const) {
-    for (let slot = 1; slot <= 4; slot++) {
+    const lineY = scene.layout.lines[side].y;
+    for (let slot = 1; slot <= scene.lines[side].length; slot++) {
       const active = scene.cursor === slot;
-      const r = slotRect(side, slot);
+      const r = slotRect(scene.layout, side, slot);
       const cx = r.x + r.w / 2;
       if (active) {
         // A soft band behind the slot that acts now, on both lines.
-        const g = ctx.createRadialGradient(cx, LINE_Y, 10, cx, LINE_Y, r.w * 0.8);
+        const g = ctx.createRadialGradient(cx, lineY, 10, cx, lineY, r.w * 0.8);
         g.addColorStop(0, 'rgba(255, 201, 74, 0.28)');
         g.addColorStop(1, 'rgba(255, 201, 74, 0)');
         ctx.fillStyle = g;
         ctx.fillRect(r.x - 20, r.y - 24, r.w + 40, r.h + 48);
       }
       // Slot number on a small disc above the stone.
-      const ny = r.y - 13;
+      const ny = r.y - SLOT_NUMBER.above;
       ctx.fillStyle = active ? 'rgba(255,201,74,0.25)' : 'rgba(10,12,20,0.55)';
       ctx.beginPath();
-      ctx.arc(cx, ny, 11, 0, Math.PI * 2);
+      ctx.arc(cx, ny, SLOT_NUMBER.r, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = active ? PALETTE.ember : 'rgba(155,163,182,0.35)';
       ctx.lineWidth = 1.5;
@@ -783,8 +902,8 @@ function drawCursorTrack(ctx: CanvasRenderingContext2D, scene: Scene): void {
   }
 }
 
-function drawHandTray(ctx: CanvasRenderingContext2D): void {
-  const { x, y, w, h } = HAND_TRAY;
+function drawHandTray(ctx: CanvasRenderingContext2D, tray: Rect): void {
+  const { x, y, w, h } = tray;
   // A low slab of dark wood with a lit front edge.
   const g = ctx.createLinearGradient(0, y, 0, y + h);
   g.addColorStop(0, 'rgba(40,30,22,0.9)');
@@ -839,33 +958,12 @@ function strikesOf(impacts: readonly Impact[]): Strike[] {
   return [...bySlot.values()];
 }
 
-interface Pt {
-  readonly x: number;
-  readonly y: number;
-}
-
-/** Where a strike starts, meets the defending stone, and ends on the defending figure. */
-function strikePath(s: Strike): { from: Pt; arc: Pt; ward: Pt; bend: Pt; chest: Pt } {
-  const fromX = slotX(other(s.defender), s.slot);
-  const toX = slotX(s.defender, s.slot);
-  const fig = FIGURE[s.defender];
-  const lowY = LINE_Y + SLOT_STONE.h / 2;
-  return {
-    from: { x: fromX, y: lowY - 6 },
-    // The bolt dips under the HP plaques, across the middle of the camp.
-    arc: { x: (fromX + toX) / 2, y: lowY + 150 },
-    ward: { x: toX, y: lowY + 4 },
-    bend: { x: (toX + fig.x) / 2, y: lowY + 50 },
-    chest: { x: fig.x, y: fig.y - fig.size * 0.55 },
-  };
-}
-
-function quadPoint(a: { x: number; y: number }, c: { x: number; y: number }, b: { x: number; y: number }, t: number): { x: number; y: number } {
+function quadPoint(a: Pt, c: Pt, b: Pt, t: number): Pt {
   const u = 1 - t;
   return { x: u * u * a.x + 2 * u * t * c.x + t * t * b.x, y: u * u * a.y + 2 * u * t * c.y + t * t * b.y };
 }
 
-function comet(ctx: CanvasRenderingContext2D, head: { x: number; y: number }, tail: { x: number; y: number }, color: string, r: number, alpha: number): void {
+function comet(ctx: CanvasRenderingContext2D, head: Pt, tail: Pt, color: string, r: number, alpha: number): void {
   ctx.save();
   ctx.globalAlpha = alpha;
   const g = ctx.createLinearGradient(tail.x, tail.y, head.x, head.y);
@@ -892,8 +990,8 @@ function comet(ctx: CanvasRenderingContext2D, head: { x: number; y: number }, ta
   ctx.restore();
 }
 
-/** A curved rune shield under the defending stone, facing the incoming bolt. */
-function drawStoneWard(ctx: CanvasRenderingContext2D, at: { x: number; y: number }, facingUp: boolean, strength: number): void {
+/** A curved rune shield on the edge of the defending stone that the bolt reaches, facing the bolt. */
+function drawStoneWard(ctx: CanvasRenderingContext2D, at: Pt, facingUp: boolean, strength: number): void {
   if (strength <= 0) return;
   ctx.save();
   ctx.globalAlpha = strength;
@@ -944,10 +1042,10 @@ function strikeLabel(ctx: CanvasRenderingContext2D, text: string, x: number, y: 
  * figure (bolt..through), and the labels stay until the impact is removed.
  * Without motion: nothing moves; the whole path is drawn faintly at once and every label shows.
  */
-function drawStrikes(ctx: CanvasRenderingContext2D, strikes: readonly Strike[], motion: boolean): void {
+function drawStrikes(ctx: CanvasRenderingContext2D, layout: BoardLayout, strikes: readonly Strike[], motion: boolean): void {
   const attack = DIRECTION_GLOW.attack;
   for (const s of strikes) {
-    const p = strikePath(s);
+    const p = strikePath(layout, s.defender, s.slot);
     const age = motion ? s.age : PHASE.through;
     const fade = motion ? 1 - window01(s.age, 0.75, 1) : 1;
 
@@ -993,18 +1091,16 @@ function drawStrikes(ctx: CanvasRenderingContext2D, strikes: readonly Strike[], 
 
     if (s.blocked > 0) {
       const shown = motion ? window01(age, PHASE.bolt - 0.04, PHASE.bolt) : 1;
-      drawStoneWard(ctx, p.ward, false, shown * fade * (motion ? 1 - 0.4 * window01(age, PHASE.bolt, 1) : 0.85));
+      drawStoneWard(ctx, p.ward, p.wardFacesUp, shown * fade * (motion ? 1 - 0.4 * window01(age, PHASE.bolt, 1) : 0.85));
       // Over the stone itself: the label belongs to the stone that blocked.
       const rise = motion ? window01(age, PHASE.bolt, 1) * 8 : 0;
-      strikeLabel(ctx, `Blocked ${s.blocked}`, p.ward.x, LINE_Y + 10 - rise, DIRECTION_GLOW.defense, 20, shown * fade, motion ? 1 - window01(age, PHASE.bolt, PHASE.bolt + 0.12) : 0);
+      strikeLabel(ctx, `Blocked ${s.blocked}`, p.ward.x, layout.lines[s.defender].y + 10 - rise, DIRECTION_GLOW.defense, 20, shown * fade, motion ? 1 - window01(age, PHASE.bolt, PHASE.bolt + 0.12) : 0);
     }
     if (s.dealt > 0) {
       const shown = motion ? window01(age, PHASE.through - 0.04, PHASE.through) : 1;
-      const fig = FIGURE[s.defender];
+      const at = layout.hitLabel[s.defender];
       const rise = motion ? window01(age, PHASE.through, 1) * 18 : 0;
-      // Beside the head, on the side away from the middle so it never meets the other figure's label.
-      const out = s.defender === 'player' ? -1 : 1;
-      strikeLabel(ctx, `−${s.dealt}`, fig.x + out * 112, fig.y - fig.size * 0.62 - rise, PALETTE.flame, 34, shown * fade, motion ? 1 - window01(age, PHASE.through, PHASE.through + 0.15) : 0);
+      strikeLabel(ctx, `−${s.dealt}`, at.x, at.y - rise, PALETTE.flame, at.px, shown * fade, motion ? 1 - window01(age, PHASE.through, PHASE.through + 0.15) : 0);
     }
   }
 }
@@ -1038,12 +1134,11 @@ function hpLostFade(side: Owner, impacts: readonly Impact[], motion: boolean): n
 }
 
 export function drawBoard(ctx: CanvasRenderingContext2D, scene: Scene): void {
+  const L = scene.layout;
   const strikes = strikesOf(scene.impacts);
-  drawSky(ctx, scene);
-  drawTreeline(ctx, scene);
-  drawGround(ctx, scene);
+  drawScenery(ctx, scene);
   drawFirelight(ctx, scene);
-  if (scene.handTray) drawHandTray(ctx);
+  if (scene.handTray && L.handTray !== null) drawHandTray(ctx, L.handTray);
   drawCursorTrack(ctx, scene);
   const pulse = scene.motion ? 0.5 + 0.5 * Math.sin(scene.time * 0.006) : 1;
   for (const side of ['enemy', 'player'] as const) {
@@ -1051,7 +1146,7 @@ export function drawBoard(ctx: CanvasRenderingContext2D, scene: Scene): void {
       const slot = i + 1;
       const isTarget = side === 'player' && scene.targets.has(slot);
       const highlight = isTarget ? (scene.hoverSlot === slot ? 'hover' : 'target') : 'none';
-      drawStone(ctx, slotRect(side, slot), card, card === null ? null : scene.look(card), {
+      drawStone(ctx, slotRect(L, side, slot), card, card === null ? null : scene.look(card), {
         glow: card === null ? 0 : (scene.firing.get(card.uid) ?? 0),
         highlight,
         pulse,
@@ -1059,18 +1154,18 @@ export function drawBoard(ctx: CanvasRenderingContext2D, scene: Scene): void {
       });
     });
   }
-  drawEnemyFigure(ctx, scene.enemyId, { ...FIGURE.enemy, time: scene.time, motion: scene.motion, reaction: reactionOf('enemy', strikes, scene.motion) });
+  drawEnemyFigure(ctx, scene.enemyId, { ...L.figure.enemy, time: scene.time, motion: scene.motion, reaction: reactionOf('enemy', strikes, scene.motion) });
   drawCampfire(ctx, scene);
-  drawWayfarer(ctx, { ...FIGURE.player, time: scene.time, motion: scene.motion, reaction: reactionOf('player', strikes, scene.motion) });
+  drawWayfarer(ctx, { ...L.figure.player, time: scene.time, motion: scene.motion, reaction: reactionOf('player', strikes, scene.motion) });
   for (const side of ['enemy', 'player'] as const) {
     const hp = scene.hp[side];
     // Until the bolt reaches the figure, keep showing the HP from before the hit.
     const landed = !hitInFlight(side, scene.impacts, scene.motion) || hp.before === undefined;
     const shown = landed ? hp : { now: hp.before ?? hp.now, max: hp.max };
-    drawHp(ctx, side, side === 'player' ? 'You' : scene.enemyName, shown, landed ? (hp.before ?? null) : null, hpLostFade(side, scene.impacts, scene.motion));
+    drawHp(ctx, L.hp[side], side === 'player' ? 'You' : scene.enemyName, shown, landed ? (hp.before ?? null) : null, hpLostFade(side, scene.impacts, scene.motion));
   }
-  drawStrikes(ctx, strikes, scene.motion);
-  drawGrowth(ctx, scene.impacts, scene.motion);
+  drawStrikes(ctx, L, strikes, scene.motion);
+  drawGrowth(ctx, L, scene.impacts, scene.motion);
 }
 
 /**
@@ -1078,19 +1173,20 @@ export function drawBoard(ctx: CanvasRenderingContext2D, scene: Scene): void {
  * source stone to its target and a label rises over the target ("+N" for growth, "copy" for a
  * copy); a fizzled effect shows "fizzles" under its stone.
  */
-function drawGrowth(ctx: CanvasRenderingContext2D, impacts: readonly Impact[], motion: boolean): void {
+function drawGrowth(ctx: CanvasRenderingContext2D, layout: BoardLayout, impacts: readonly Impact[], motion: boolean): void {
   for (const { event: e, age } of impacts) {
     if (e.type !== 'grow' && e.type !== 'copy' && e.type !== 'fizzle') continue;
     const fade = motion ? 1 - window01(age, 0.7, 1) : 1;
-    const from = slotX(e.side, e.sourceSlot);
+    const lineY = layout.lines[e.side].y;
+    const from = slotX(layout, e.side, e.sourceSlot);
     if (e.type === 'fizzle') {
-      strikeLabel(ctx, 'fizzles', from, LINE_Y + 4, PALETTE.text, 19, fade, 0);
+      strikeLabel(ctx, 'fizzles', from, lineY + 4, PALETTE.text, 19, fade, 0);
       continue;
     }
     const glow = e.type === 'grow' ? DIRECTION_GLOW.growth : DIRECTION_GLOW.flow;
-    const to = slotX(e.side, e.type === 'copy' ? e.asSlot : e.targetSlot); // R-13.5: a chain points at the card copied
+    const to = slotX(layout, e.side, e.type === 'copy' ? e.asSlot : e.targetSlot); // R-13.5: a chain points at the card copied
     const t = motion ? Math.min(1, age / 0.25) : 1;
-    const top = LINE_Y - SLOT_STONE.h / 2;
+    const top = lineY - SLOT_STONE.h / 2;
     ctx.save();
     ctx.globalAlpha = 0.85 * fade;
     ctx.strokeStyle = glow;

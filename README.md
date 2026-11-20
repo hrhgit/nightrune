@@ -12,7 +12,7 @@ One battle against the Training Dummy is playable in the browser and from the co
 
 - `engine/` – pure battle engine: `step(state, action) → { state, events }`. Drawing, energy, placement, head-to-head slot resolution, battle end, round limit, and a seeded generator kept in the state. Placement legality is exposed as `checkPlace` / `legalPlacements`.
 - `data/` – the card, enemy, deck and rule-constant tables. All numbers live here.
-- `web/` – the page: the battlefield is drawn on a Canvas ("runestone night camp"), controls and the battle log are HTML. It only shows engine state and sends actions.
+- `web/` – the page: the battlefield is drawn on a Canvas ("runestone night camp"), controls and the battle log are HTML. It only shows engine state and sends actions. The board has two layouts (`web/layout.ts`): wide, with the two lines side by side, and tall for screens under 700 px, with the enemy's line along the top and the player's along the bottom.
 - `present/` – event and card text shared by the page and the CLI.
 - `bots/greedy.ts` – a simple bot used by the CLI and by invariant tests.
 - `web/scene.html` – the scene preview page; `scripts/scenes.ts` screenshots it headless (see below).

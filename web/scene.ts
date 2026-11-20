@@ -10,8 +10,9 @@ import '@fontsource/alegreya-sans/500.css';
 import '@fontsource/alegreya-sans/700.css';
 import './style.css';
 import { cardDef, createBattle, enemyDef, type CardInstance, type EnemyId, type Level, type Owner, type Slot } from '../engine/index.ts';
-import { BOARD, drawBoard } from './board.ts';
-import { handCanvas, look, watchHand } from './look.ts';
+import { drawBoard } from './board.ts';
+import type { BoardFit } from './layout.ts';
+import { handCanvas, look, sizeBoardCanvas, watchBoard } from './look.ts';
 import type { SceneReport, TextMark, TextOverlap } from './scene-report.ts';
 import { SCENES, type CardRef, type SceneSpec } from './scenes.ts';
 
@@ -132,13 +133,8 @@ function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motio
   host.append(article);
   const handCards = (spec.hand ?? []).map((ref, i) => instance(ref, `hand-${i + 1}`));
 
-  // Size the backing store after the canvas is in the page, as the game does.
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.round(BOARD.width * dpr);
-  canvas.height = Math.round(BOARD.height * dpr);
   const ctx = canvas.getContext('2d');
   if (ctx === null) throw new Error('No 2D canvas');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const lines = { player: line(spec, 'player'), enemy: line(spec, 'enemy') };
   const firing = new Map<string, number>();
   for (const f of spec.firing ?? []) {
@@ -151,7 +147,8 @@ function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motio
     return before === undefined ? { now, max } : { now, max, before };
   };
   recordText(canvas, ctx, spec.id, 'board', marks);
-  const draw = (handTray: boolean) => drawBoard(ctx, {
+  const draw = (fit: BoardFit) => drawBoard(ctx, {
+    layout: fit.layout,
     seed: spec.seed,
     time: spec.time ?? 1000,
     motion,
@@ -165,15 +162,22 @@ function renderScene(spec: SceneSpec, host: HTMLElement, marks: RawMark[], motio
     targets: new Set(spec.targets ?? []),
     hoverSlot: spec.hover ?? null,
     impacts: spec.impacts ?? [],
-    handTray,
+    handTray: fit.handInTray,
   });
-  // The hand moves between the tray and below the board as the board resizes; redraw to match,
-  // dropping the old drawing's text marks so the report describes only what is on screen.
-  draw(
-    watchHand(hand, wrap, { after: wrap }, (inTray) => {
-      for (let i = marks.length - 1; i >= 0; i--) if (marks[i]?.el === canvas) marks.splice(i, 1);
-      ctx.clearRect(0, 0, BOARD.width, BOARD.height);
-      draw(inTray);
+  // The layout and the hand's place follow the scene's width, as in the game. Each paint sizes the
+  // canvas to its place on screen first, and drops the old drawing's text marks so the report
+  // describes only what is on screen.
+  const paint = (fit: BoardFit): void => {
+    for (let i = marks.length - 1; i >= 0; i--) if (marks[i]?.el === canvas) marks.splice(i, 1);
+    sizeBoardCanvas(canvas, fit.layout);
+    const k = canvas.width / fit.layout.width;
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    ctx.clearRect(0, 0, fit.layout.width, fit.layout.height);
+    draw(fit);
+  };
+  paint(
+    watchBoard({ measured: article, wrap, canvas, hand, below: { after: wrap } }, (fit) => {
+      paint(fit);
       redrawn();
     }),
   );
