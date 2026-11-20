@@ -60,10 +60,28 @@ At a 1008 px viewport and pixel ratio 1 the scene page's board is exactly 960×5
 
 The first comparison found two real differences, both fixed before this was written: the tree on the right edge had taken seeded numbers where it used to take the middle values, and the second curve of a strike bent 4 board units lower than before. `tests/layout.test.ts` now pins the wide strike path to its old numbers.
 
+## After Qodo's review of `36f352a`
+
+Qodo's review of the first commit had one finding, "Phone strikes cover health plaques" (correctness, remediation recommended): on the tall board both plaques sat directly under the enemy's line, so a block's ward lay over a plaque and a bolt crossed one on its way, and strikes were painted after the plaques. It was right. Two changes:
+
+- The tall board's plaques moved 26 board units down (y = 132 to 158), below the ward under an enemy stone, and the moon moved down with them. The board is still 440×530, so the page measurements above were not run again.
+- In both layouts the bolts and the reduced-motion trail are now painted before the plaques, and the wards, sparks and labels after them. A path that crosses a plaque passes behind its name and numbers.
+
+`phone-enemy-block-before.png` and `phone-enemy-block-after.png` are a new scene, `enemy-block` (the enemy's Parry blocks 4 of the player's 6 in slot 2), on the phone with reduced motion, drawn by `36f352a` and by the fix. Before, the dashed trail runs over "30 / 30" and "Training Dummy" and the ward lies on the top edge of both plaques; after, neither does.
+
+`npm run scenes` on the fix (39 screenshots: 13 scenes × 3 viewports): smallest board text 12.4 px on desktop and 8.9 px on the phone, hand cards 11.3 and 7.7 px, 0 clipped, 0 console errors, all as before. In the 12 scenes that existed before, the overlapping-text lists are identical to the run on `36f352a`; the new scene lists "Blocked 4" over its stone's own text, as the other block scenes do.
+
+Not fixed, and not new: on the wide board the ward under a stone in slot 2 or 3 still reaches the top of the plaque below it and touches the name (the desktop screenshot of `enemy-block` shows it). It does on `main` too. Moving the wide plaques would put more of every bolt behind them, so it is left for a change of its own. On the tall board the ward on a player's stone sits over that slot's number disc.
+
+Found while looking at the fix in a browser, not by the review: the first commit's two-row phone header squeezed the scene page's title to 8 px wide, so "Scenes" lay over the intro text at 375 px. The intro now takes a row of its own (title 335 px wide, intro under it). The game page's header is as measured above (board starts at y = 111 px).
+
+The wide comparison in the section above was made before this fix and was not run again: a wide frame in which a bolt crosses the corner of a plaque now differs there, on purpose.
+
 ## What is checked, and what is not
 
-- Checked by `tests/layout.test.ts` in `npm run check`: in both layouts nothing is outside the board, no stone sits on another stone, a number disc or an HP plaque, every strike runs from the attacking stone to the defending stone to the defending figure, the fit thresholds, and a slot of at least 44 CSS px each way at every width from 320 px.
+- Checked by `tests/layout.test.ts` in `npm run check`: in both layouts nothing is outside the board, no stone sits on another stone, a number disc or an HP plaque, every strike runs from the attacking stone to the defending stone to the defending figure, on the tall board no ward reaches a plaque (putting the plaques back at y = 132 made this test fail), the fit thresholds, and a slot of at least 44 CSS px each way at every width from 320 px.
 - Measured, not gated: text size on screen (`npm run scenes`).
+- Not checked by a test: the painting order (bolts, then plaques, then wards and labels). It is in `drawBoard` and was looked at in the screenshots.
 - Not checked: how the tall board feels to play by touch on a real device; the screenshots were looked at by the agent, not by a person.
 
 Code and this note were written by Claude Code under the author's direction.

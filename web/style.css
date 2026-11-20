@@ -484,6 +484,8 @@ button.primary:hover:not(:disabled) {
 /* Scene preview page (scene.html) ------------------------------------------ */
 
 .scene-intro {
+  /* A row of its own in the phone header's grid, under the title. */
+  grid-column: 1 / -1;
   margin: 0;
   color: var(--rune);
   max-width: 70ch;

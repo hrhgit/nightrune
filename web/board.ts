@@ -10,7 +10,7 @@ import { nextUint32, type CardInstance, type GameEvent, type Owner, type Slot } 
 import type { EffectPart } from '../present/text.ts';
 import { cardFaceLayout, layoutCardText, type Box, type CardTextLayout } from './card-face.ts';
 import { drawEnemyFigure, drawWayfarer, type Reaction } from './figures.ts';
-import { SLOT_NUMBER, SLOT_STONE, slotRect, slotX, strikePath, WIDE, type BoardLayout, type Pt, type Rect } from './layout.ts';
+import { SLOT_NUMBER, SLOT_STONE, slotRect, slotX, strikePath, WARD, WIDE, type BoardLayout, type Pt, type Rect } from './layout.ts';
 import { DIRECTION_GLOW, PALETTE } from './palette.ts';
 import { RUNES } from './runes.ts';
 
@@ -361,12 +361,6 @@ interface Backdrop {
 }
 
 let backdrop: Backdrop | null = null;
-/** How many times the scenery layers were painted: the page's frame loop must not make this grow. */
-let backdropPaints = 0;
-export function backdropPaintCount(): number {
-  return backdropPaints;
-}
-
 function paintLayer(L: BoardLayout, scale: number, paint: (ctx: CanvasRenderingContext2D) => void): HTMLCanvasElement {
   const layer = document.createElement('canvas');
   layer.width = Math.ceil(L.width * scale);
@@ -387,7 +381,6 @@ function drawScenery(ctx: CanvasRenderingContext2D, scene: Scene): void {
   const scale = Math.hypot(t.a, t.b);
   const key = `${L.id}:${scene.seed}:${scale}`;
   if (backdrop === null || backdrop.key !== key) {
-    backdropPaints += 1;
     backdrop = {
       key,
       back: paintLayer(L, scale, (c) => paintSky(c, L)),
@@ -990,7 +983,7 @@ function comet(ctx: CanvasRenderingContext2D, head: Pt, tail: Pt, color: string,
   ctx.restore();
 }
 
-/** A curved rune shield on the edge of the defending stone that the bolt reaches, facing the bolt. */
+/** A curved rune shield on the edge of the defending stone that the bolt reaches, facing the bolt (WARD in layout.ts). */
 function drawStoneWard(ctx: CanvasRenderingContext2D, at: Pt, facingUp: boolean, strength: number): void {
   if (strength <= 0) return;
   ctx.save();
@@ -999,12 +992,12 @@ function drawStoneWard(ctx: CanvasRenderingContext2D, at: Pt, facingUp: boolean,
   ctx.shadowColor = DIRECTION_GLOW.defense;
   ctx.shadowBlur = 20;
   ctx.lineCap = 'round';
-  const r = SLOT_STONE.w * 0.62;
-  const cy = at.y + (facingUp ? r * 0.72 : -r * 0.72);
+  const r = WARD.r;
+  const cy = at.y + (facingUp ? r * WARD.centre : -r * WARD.centre);
   const mid = facingUp ? -Math.PI / 2 : Math.PI / 2;
-  ctx.lineWidth = 5;
+  ctx.lineWidth = WARD.stroke;
   ctx.beginPath();
-  ctx.arc(at.x, cy, r, mid - 0.75, mid + 0.75);
+  ctx.arc(at.x, cy, r, mid - WARD.halfAngle, mid + WARD.halfAngle);
   ctx.stroke();
   ctx.lineWidth = 1.5;
   ctx.beginPath();
@@ -1015,7 +1008,7 @@ function drawStoneWard(ctx: CanvasRenderingContext2D, at: Pt, facingUp: boolean,
     const ay = cy + Math.sin(mid + a) * r;
     ctx.beginPath();
     ctx.moveTo(ax, ay);
-    ctx.lineTo(ax + Math.cos(mid + a) * 7, ay + Math.sin(mid + a) * 7);
+    ctx.lineTo(ax + Math.cos(mid + a) * WARD.tick, ay + Math.sin(mid + a) * WARD.tick);
     ctx.stroke();
   }
   ctx.restore();
@@ -1038,16 +1031,18 @@ function strikeLabel(ctx: CanvasRenderingContext2D, text: string, x: number, y: 
 }
 
 /**
- * With motion: the bolt travels (0..bolt), meets the ward (bolt), the rest flies on to the
- * figure (bolt..through), and the labels stay until the impact is removed.
- * Without motion: nothing moves; the whole path is drawn faintly at once and every label shows.
+ * A strike is drawn in two passes, with the HP plaques between them. With motion: the bolt travels
+ * (0..bolt), meets the ward (bolt), the rest flies on to the figure (bolt..through), and the labels
+ * stay until the impact is removed. Without motion: nothing moves; the whole path is drawn faintly
+ * at once and every label shows.
+ *
+ * First pass: the bolts, or the still trail. A path can cross a plaque, so this goes under them.
  */
-function drawStrikes(ctx: CanvasRenderingContext2D, layout: BoardLayout, strikes: readonly Strike[], motion: boolean): void {
+function drawStrikeBolts(ctx: CanvasRenderingContext2D, layout: BoardLayout, strikes: readonly Strike[], motion: boolean): void {
   const attack = DIRECTION_GLOW.attack;
   for (const s of strikes) {
     const p = strikePath(layout, s.defender, s.slot);
     const age = motion ? s.age : PHASE.through;
-    const fade = motion ? 1 - window01(s.age, 0.75, 1) : 1;
 
     if (!motion) {
       // A still trail along the whole path.
@@ -1071,6 +1066,18 @@ function drawStrikes(ctx: CanvasRenderingContext2D, layout: BoardLayout, strikes
         const share = s.dealt / (s.dealt + s.blocked);
         comet(ctx, quadPoint(p.ward, p.bend, p.chest, t2), quadPoint(p.ward, p.bend, p.chest, Math.max(0, t2 - 0.35)), attack, 5 + 5 * share, 1);
       }
+    }
+  }
+}
+
+/** Second pass: the ward and its sparks on the defending stone, and the labels. These go over everything. */
+function drawStrikeMarks(ctx: CanvasRenderingContext2D, layout: BoardLayout, strikes: readonly Strike[], motion: boolean): void {
+  for (const s of strikes) {
+    const p = strikePath(layout, s.defender, s.slot);
+    const age = motion ? s.age : PHASE.through;
+    const fade = motion ? 1 - window01(s.age, 0.75, 1) : 1;
+
+    if (motion) {
       // Sparks where the bolt hits the ward.
       const t3 = window01(age, PHASE.bolt, PHASE.bolt + 0.25);
       if (s.blocked > 0 && t3 > 0 && t3 < 1) {
@@ -1157,6 +1164,8 @@ export function drawBoard(ctx: CanvasRenderingContext2D, scene: Scene): void {
   drawEnemyFigure(ctx, scene.enemyId, { ...L.figure.enemy, time: scene.time, motion: scene.motion, reaction: reactionOf('enemy', strikes, scene.motion) });
   drawCampfire(ctx, scene);
   drawWayfarer(ctx, { ...L.figure.player, time: scene.time, motion: scene.motion, reaction: reactionOf('player', strikes, scene.motion) });
+  // Bolts under the plaques, so a path that crosses one never covers its name or numbers.
+  drawStrikeBolts(ctx, L, strikes, scene.motion);
   for (const side of ['enemy', 'player'] as const) {
     const hp = scene.hp[side];
     // Until the bolt reaches the figure, keep showing the HP from before the hit.
@@ -1164,7 +1173,7 @@ export function drawBoard(ctx: CanvasRenderingContext2D, scene: Scene): void {
     const shown = landed ? hp : { now: hp.before ?? hp.now, max: hp.max };
     drawHp(ctx, L.hp[side], side === 'player' ? 'You' : scene.enemyName, shown, landed ? (hp.before ?? null) : null, hpLostFade(side, scene.impacts, scene.motion));
   }
-  drawStrikes(ctx, L, strikes, scene.motion);
+  drawStrikeMarks(ctx, L, strikes, scene.motion);
   drawGrowth(ctx, L, scene.impacts, scene.motion);
 }
 

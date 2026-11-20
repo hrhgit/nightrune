@@ -25,6 +25,13 @@ export const SLOT_GAP = 4;
 /** The slot number sits on a disc this far above a stone's top edge, with this radius. */
 export const SLOT_NUMBER = { above: 13, r: 11 } as const;
 
+/**
+ * The ward a block shows on a stone: an arc of radius `r` whose centre lies `centre` radii inside
+ * the stone from the strike's `ward` point, spanning `halfAngle` radians each way, with ticks of
+ * length `tick` pointing outward. `wardBox` gives the space it takes.
+ */
+export const WARD = { r: SLOT_STONE.w * 0.62, centre: 0.72, halfAngle: 0.75, tick: 7, stroke: 5 } as const;
+
 export interface BoardLayout {
   readonly id: 'wide' | 'tall';
   readonly width: number;
@@ -77,9 +84,10 @@ export const TALL: BoardLayout = {
   horizonY: 292,
   figure: TALL_FIGURE,
   // Both plaques share one band under the enemy's line, each above its own figure, as on the wide
-  // board. A band of its own for the player's plaque would make the board 50 units taller.
-  hp: { player: { x: 10, y: 132, w: 200, h: 46 }, enemy: { x: 230, y: 132, w: 200, h: 46 } },
-  moon: { x: 220, y: 210 },
+  // board. A band of its own for the player's plaque would make the board 50 units taller. The
+  // band starts below the ward a block shows under an enemy stone (tests/layout.test.ts).
+  hp: { player: { x: 10, y: 158, w: 200, h: 46 }, enemy: { x: 230, y: 158, w: 200, h: 46 } },
+  moon: { x: 220, y: 228 },
   fire: { x: 220, y: 368, scale: 0.5 },
   handTray: null,
   hitLabel: {
@@ -148,6 +156,16 @@ export function strikePath(layout: BoardLayout, defender: Owner, slot: number): 
   }
   const toFigure = chest.y > ward.y ? 1 : -1;
   return { from, arc, ward, bend: { x: (toX + fig.x) / 2, y: ward.y + toFigure * 46 }, chest, wardFacesUp: arc.y < ward.y };
+}
+
+/** The box a block's ward takes at the end of `path`, ticks and stroke included. */
+export function wardBox(path: StrikePath): Rect {
+  const halfW = WARD.r * Math.sin(WARD.halfAngle) + WARD.stroke / 2;
+  // The arc's ends sit about level with the ward point; its middle bulges away from the stone.
+  const out = WARD.r * (1 - WARD.centre) + WARD.tick + 1;
+  const back = WARD.stroke / 2;
+  const y = path.wardFacesUp ? path.ward.y - out : path.ward.y - back;
+  return { x: path.ward.x - halfW, y, w: halfW * 2, h: out + back };
 }
 
 /** Which layout a board gets, and whether the hand sits in its tray, from the width available to it. */

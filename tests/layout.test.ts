@@ -2,7 +2,7 @@
 // and the tall board, and which of the two a board gets from the width it has on screen.
 // These are the numbers the canvas draws from and the page places its slot buttons from.
 import { describe, expect, it } from 'vitest';
-import { BOARD_FIT, fitFor, LAYOUTS, SLOT_NUMBER, SLOT_STONE, slotRect, strikePath, TALL, WIDE, type BoardLayout, type Rect } from '../web/layout.ts';
+import { BOARD_FIT, fitFor, LAYOUTS, SLOT_NUMBER, SLOT_STONE, slotRect, strikePath, TALL, WARD, wardBox, WIDE, type BoardLayout, type Rect } from '../web/layout.ts';
 
 const SIDES = ['player', 'enemy'] as const;
 const SLOTS = [1, 2, 3, 4] as const;
@@ -83,6 +83,46 @@ describe.each(LAYOUTS.map((L) => [L.id, L] as const))('the %s board', (_id, L) =
         expect(p.chest.y, name).toBeLessThan(fig.y);
         expect(p.chest.y, name).toBeGreaterThan(fig.y - fig.size);
         for (const pt of [p.from, p.arc, p.ward, p.bend, p.chest]) expect(inside(L, { ...pt, w: 0, h: 0 }), name).toBe(true);
+      }
+    }
+  });
+});
+
+describe("a block's ward", () => {
+  it('lies inside the box the layouts reckon with, whichever way it faces', () => {
+    for (const L of LAYOUTS) {
+      for (const defender of SIDES) {
+        const p = strikePath(L, defender, 2);
+        const box = wardBox(p);
+        // The ward as web/board.ts draws it: an arc about a centre inside the stone, and three ticks beyond the arc.
+        const out = p.wardFacesUp ? -1 : 1;
+        const cy = p.ward.y - out * WARD.r * WARD.centre;
+        const mid = (out * Math.PI) / 2;
+        const points: { x: number; y: number; pad: number }[] = [];
+        for (let a = -WARD.halfAngle; a <= WARD.halfAngle + 1e-9; a += WARD.halfAngle / 10) {
+          points.push({ x: p.ward.x + Math.cos(mid + a) * WARD.r, y: cy + Math.sin(mid + a) * WARD.r, pad: WARD.stroke / 2 });
+        }
+        for (const a of [-0.45, 0, 0.45]) {
+          points.push({ x: p.ward.x + Math.cos(mid + a) * (WARD.r + WARD.tick), y: cy + Math.sin(mid + a) * (WARD.r + WARD.tick), pad: 0.75 });
+        }
+        for (const pt of points) {
+          const name = `${L.id}, ${defender}, point ${pt.x.toFixed(1)},${pt.y.toFixed(1)}`;
+          expect(pt.x - pt.pad, name).toBeGreaterThanOrEqual(box.x - 1e-9);
+          expect(pt.x + pt.pad, name).toBeLessThanOrEqual(box.x + box.w + 1e-9);
+          expect(pt.y - pt.pad, name).toBeGreaterThanOrEqual(box.y - 1e-9);
+          expect(pt.y + pt.pad, name).toBeLessThanOrEqual(box.y + box.h + 1e-9);
+        }
+      }
+    }
+  });
+
+  // The wide board is not held to this: there the ward under a stone in slot 2 or 3 reaches the top
+  // of the plaque below it, as it did before the tall board existed.
+  it('never reaches a plaque on the tall board, where both plaques lie under the enemy line', () => {
+    for (const defender of SIDES) {
+      for (const slot of SLOTS) {
+        const box = wardBox(strikePath(TALL, defender, slot));
+        for (const side of SIDES) expect(overlap(box, TALL.hp[side]), `ward on ${defender} ${slot} and the ${side} plaque`).toBe(false);
       }
     }
   });
